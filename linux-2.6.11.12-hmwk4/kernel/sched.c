@@ -49,6 +49,13 @@
 
 #include <asm/unistd.h>
 
+/* OS HW4 */
+/* Stores probabilities of color pairs.  Defaults to 0. */
+int[4][4] colorProbs = { {0,0,0,0},
+		         {0,0,0,0},
+		         {0,0,0,0}, 
+		         {0,0,0,0} };
+
 /*
  * Convert user-nice values [ -20 ... 0 ... 19 ]
  * to static priority [ MAX_RT_PRIO..MAX_PRIO-1 ],
