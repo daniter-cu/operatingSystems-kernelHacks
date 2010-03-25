@@ -1,0 +1,46 @@
+*************** static inline unsigned long _get_base(ch
+*** 81,87 ****
+  #define loadsegment(seg,value)			\
+  	asm volatile("\n"			\
+  		"1:\t"				\
+- 		"movl %0,%%" #seg "\n"		\
+  		"2:\n"				\
+  		".section .fixup,\"ax\"\n"	\
+  		"3:\t"				\
+--- 81,87 ----
+  #define loadsegment(seg,value)			\
+  	asm volatile("\n"			\
+  		"1:\t"				\
++ 		"mov %0,%%" #seg "\n"		\
+  		"2:\n"				\
+  		".section .fixup,\"ax\"\n"	\
+  		"3:\t"				\
+*************** static inline unsigned long _get_base(ch
+*** 93,105 ****
+  		".align 4\n\t"			\
+  		".long 1b,3b\n"			\
+  		".previous"			\
+- 		: :"m" (*(unsigned int *)&(value)))
+  
+  /*
+   * Save a segment register away
+   */
+  #define savesegment(seg, value) \
+- 	asm volatile("movl %%" #seg ",%0":"=m" (*(int *)&(value)))
+  
+  /*
+   * Clear and set 'TS' bit respectively
+--- 93,105 ----
+  		".align 4\n\t"			\
+  		".long 1b,3b\n"			\
+  		".previous"			\
++ 		: :"m" (value))
+  
+  /*
+   * Save a segment register away
+   */
+  #define savesegment(seg, value) \
++ 	asm volatile("mov %%" #seg ",%0":"=m" (value))
+  
+  /*
+   * Clear and set 'TS' bit respectively
