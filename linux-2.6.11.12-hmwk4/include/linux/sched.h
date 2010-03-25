@@ -526,7 +526,8 @@ struct audit_context;		/* See audit.c */
 struct mempolicy;
 
 struct task_struct {
-	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
+        int color; /* OS HW4 */ /* Color assignment for SCHED_RAS */
+        volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
 	struct thread_info *thread_info;
 	atomic_t usage;
 	unsigned long flags;	/* per process flags, defined below */
