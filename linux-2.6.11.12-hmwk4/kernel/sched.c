@@ -51,10 +51,10 @@
 
 /* OS HW4 */
 /* Stores probabilities of color pairs.  Defaults to 0. */
-int[4][4] colorProbs = { {0,0,0,0},
-		         {0,0,0,0},
-		         {0,0,0,0}, 
-		         {0,0,0,0} };
+//int[4][4] colorProbs = { {0,0,0,0},
+//		         {0,0,0,0},
+//		         {0,0,0,0}, 
+//		         {0,0,0,0} };
 
 /*
  * Convert user-nice values [ -20 ... 0 ... 19 ]
@@ -284,6 +284,28 @@ struct runqueue {
 	unsigned long sbe_cnt;
 #endif
 };
+
+
+asmlinkage long sys_getprob(int color1, int color2)
+{
+    return 0;
+};
+
+asmlinkage long sys_setprob(int color1, int color2, int prob)
+{
+    return 0;
+};
+
+asmlinkage long sys_getcolor(int pid)
+{
+    return 0;
+};
+
+asmlinkage long sys_setcolor(int pid, int color)
+{
+    return 0;
+};
+
 
 static DEFINE_PER_CPU(struct runqueue, runqueues);
 
@@ -5065,3 +5087,4 @@ task_t *kdb_cpu_curr(int cpu)
 	return(cpu_curr(cpu));
 }
 #endif
+
