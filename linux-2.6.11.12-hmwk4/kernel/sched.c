@@ -297,7 +297,12 @@ struct runqueue {
 
 asmlinkage long sys_getprob(int color1, int color2)
 {
-    return 0;
+    int prob;
+    prob = colorProbs[color1][color2];
+    if (prob > 10 || prob < 0)
+	return -1;
+    else
+    	return prob;
 };
 
 /* 
@@ -318,7 +323,11 @@ asmlinkage long sys_setprob(int color1, int color2, int prob)
 
 asmlinkage long sys_getcolor(int pid)
 {
-    return 0;
+    struct task_struct *task;
+    task = find_task_by_pid(pid);
+    if (!task)
+	return -1;
+    return task->color;
 };
 
 asmlinkage long sys_setcolor(int pid, int color)
