@@ -182,6 +182,11 @@ int colorProbs[5][5] =  { {0,0,0,0,0},
 
 static unsigned int task_timeslice(task_t *p)
 {
+    	//RAS tasks should have a timeslice of 100ms.
+	if(p->policy == SCHED_RAS)
+	    return 100;
+
+
 	if (p->static_prio < NICE_TO_PRIO(0))
 		return SCALE_PRIO(DEF_TIMESLICE*4, p->static_prio);
 	else
@@ -3478,6 +3483,32 @@ int sched_setscheduler(struct task_struct *p, int policy, struct sched_param *pa
 	prio_array_t *array;
 	unsigned long flags;
 	runqueue_t *rq;
+
+	rq = task_rq_lock(p, &flags);
+
+	if(policy == SCHED_RAS)
+	{
+	   	if(!IS_VALID_COLOR(p->color))
+		{
+			task_rq_unlock(rq, &flags);
+			return -EINVAL;
+		}
+	    
+	    	array = p->array;
+	    	if (array)
+	              deactivate_task(p, rq);
+		
+		p->policy = policy;
+		p->prio = RAS_PRIO;
+		p->rt_priority = RAS_PRIO;
+		
+		if(array)
+		       enqueue_task(p, array);
+
+		task_rq_unlock(rq, &flags);
+		return 0;
+	}
+	task_rq_unlock(rq, &flags);
 
 recheck:
 	/* double check policy once rq lock held */
