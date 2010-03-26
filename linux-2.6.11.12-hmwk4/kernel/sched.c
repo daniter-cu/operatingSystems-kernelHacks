@@ -56,6 +56,13 @@ int colorProbs[5][5] =  { {0,0,0,0,0},
 		         {0,0,0,0,0}, 
 		         {0,0,0,0,0},
                          {0,0,0,0,0} };
+#define COLOR_MAX 4
+#define COLOR_MIN 0
+#define PROB_MAX 10
+#define PROB_MIN 0
+
+#define IS_VALID_COLOR(col) col >= COLOR_MIN && col <= COLOR_MAX
+#define IS_VALID_PROB(prob) prob >= PROB_MIN && prob <= PROB_MAX
 
 /*
  * Convert user-nice values [ -20 ... 0 ... 19 ]
@@ -292,6 +299,10 @@ asmlinkage long sys_getprob(int color1, int color2)
     return 0;
 };
 
+/* 
+ * 
+ * 
+ */
 asmlinkage long sys_setprob(int color1, int color2, int prob)
 {
     return 0;
