@@ -65,6 +65,9 @@ int colorProbs[5][5] =  { {0,0,0,0,0},
 #define IS_VALID_COLOR(col) ((col >= COLOR_MIN) && (col <= COLOR_MAX))
 #define IS_VALID_PROB(prob) ((prob >= PROB_MIN) && (prob <= PROB_MAX))
 
+/* global array for overall race prob */
+int overallRaceProbs[5] = {-1,-1,-1,-1,-1};
+
 /*
  * Convert user-nice values [ -20 ... 0 ... 19 ]
  * to static priority [ MAX_RT_PRIO..MAX_PRIO-1 ],
@@ -300,7 +303,7 @@ asmlinkage long sys_getprob(int color1, int color2)
 {
     int prob;
     prob = colorProbs[color1][color2];
-    if (!IS_VALID_PROB(prob))
+    if (!IS_VALID_PROB(prob)) /* this shouldn't happen, right? */
 	return -1;
     else
     	return prob;
@@ -327,13 +330,13 @@ asmlinkage long sys_getcolor(int pid)
     task_t *task;
     task = find_task_by_pid(pid);
     if (!task)
-	return -1;
+	return -EINVAL;
     return task->color;
 };
 
 asmlinkage long sys_setcolor(int pid, int color)
 {
-    task_t *tsk;
+    task_t *tsk == NULL;
     /* check uid for root */
     if(sys_getuid()!=0) {
 	return -EPERM;
@@ -5175,3 +5178,6 @@ task_t *kdb_cpu_curr(int cpu)
 }
 #endif
 
+void overall_race_prob() {
+  /* stuff */
+}
