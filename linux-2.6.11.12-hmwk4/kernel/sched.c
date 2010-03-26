@@ -323,8 +323,8 @@ asmlinkage long sys_setprob(int color1, int color2, int prob)
 
 asmlinkage long sys_getcolor(int pid)
 {
-    struct task_struct *task;
-    task = find_task_by_pid(pid);
+    task_t *task;
+    task = find_process_by_pid(pid);
     if (!task)
 	return -1;
     return task->color;
@@ -343,7 +343,7 @@ asmlinkage long sys_setcolor(int pid, int color)
     }
     /* get task struct */
   
-    tsk = find_task_by_pid(pid);
+    tsk = find_process_by_pid(pid);
     if(tsk==NULL) {
 	return -EINVAL;
     }
