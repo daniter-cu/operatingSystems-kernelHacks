@@ -336,7 +336,7 @@ asmlinkage long sys_getcolor(int pid)
 
 asmlinkage long sys_setcolor(int pid, int color)
 {
-    task_t *tsk == NULL;
+    task_t *tsk = NULL;
     /* check uid for root */
     if(sys_getuid()!=0) {
 	return -EPERM;
@@ -5146,6 +5146,20 @@ task_t *kdb_cpu_curr(int cpu)
 }
 #endif
 
-void overall_race_prob() {
-  /* stuff */
-}
+/* void overall_race_prob() { */
+
+/*   runqueue_t *rq; */
+/*   int i, numProcsOfColor = 0; */
+/*   for each cpu */
+/*   for(i = 0; i < NR_CPUS; ++i) { */
+/*     struct list_head *cq; */
+/*     struct list_head *first; */
+/*     int j, prob = 0; */
+/*     rq = cpu_rq(i); */
+/*     cq = rq->active->queue[RAS_PRIO].next; */
+/*     first = cq; */
+/*     do { */
+/*       stuff */
+/*     } while(rq != cq); */
+    
+/* } */
