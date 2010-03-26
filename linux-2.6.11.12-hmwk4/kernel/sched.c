@@ -65,6 +65,9 @@ int colorProbs[5][5] =  { {0,0,0,0,0},
 #define IS_VALID_COLOR(col) ((col >= COLOR_MIN) && (col <= COLOR_MAX))
 #define IS_VALID_PROB(prob) ((prob >= PROB_MIN) && (prob <= PROB_MAX))
 
+/* global array for overall race prob */
+int overallRaceProbs[5] = {-1,-1,-1,-1,-1};
+
 /*
  * Convert user-nice values [ -20 ... 0 ... 19 ]
  * to static priority [ MAX_RT_PRIO..MAX_PRIO-1 ],
@@ -305,7 +308,7 @@ asmlinkage long sys_getprob(int color1, int color2)
 {
     int prob;
     prob = colorProbs[color1][color2];
-    if (!IS_VALID_PROB(prob))
+    if (!IS_VALID_PROB(prob)) /* this shouldn't happen, right? */
 	return -1;
     else
     	return prob;
@@ -332,13 +335,13 @@ asmlinkage long sys_getcolor(int pid)
     task_t *task;
     task = find_task_by_pid(pid);
     if (!task)
-	return -1;
+	return -EINVAL;
     return task->color;
 };
 
 asmlinkage long sys_setcolor(int pid, int color)
 {
-    task_t *tsk;
+    task_t *tsk = NULL;
     /* check uid for root */
     if(sys_getuid()!=0) {
 	return -EPERM;
@@ -640,24 +643,76 @@ static inline void sched_info_switch(task_t *prev, task_t *next)
 #define sched_info_switch(t, next)	do { } while (0)
 #endif /* CONFIG_SCHEDSTATS */
 
+void overall_race_prob() {
+
+/*   runqueue_t *rq; */
+/*   int i, numProcsOfColor = 0; */
+/*   for each cpu */
+/*   for(i = 0; i < NR_CPUS; ++i) { */
+/*     struct list_head *cq; */
+/*     struct list_head *first; */
+/*     int j, prob = 0; */
+/*     rq = cpu_rq(i); */
+/*     cq = rq->active->queue[RAS_PRIO].next; */
+/*     first = cq; */
+/*     do { */
+/*       stuff */
+/*     } while(rq != cq); */
+    
+ } 
+
+
+
 /*
  * Adding/removing a task to/from a priority array:
  */
 static void dequeue_task(struct task_struct *p, prio_array_t *array)
 {
+    	int i;
+	int colors_empty;		//flag that tells whether or not to clear the bit
+	colors_empty = 0;		
 	array->nr_active--;
-	list_del(&p->run_list);
-	if (list_empty(array->queue + p->prio))
+	list_del(&p->run_list);		//delete the task
+	if (p->policy == SCHED_RAS)
+	{
+	    /* run through the 5 subarrays of colors from 0-4 */
+	    for (i = 0; i < COLOR_MAX+1; i++)
+	    {
+		/* if all 5 subarrays are not empty, set the flag to 1 */
+		if (!list_empty((array->queue[p->prio].next) + i))
+		    colors_empty = 1;
+	    }
+	    /* if all 5 subarrays are empty, clear the bit to 0 */
+	    if (!colors_empty)
 		__clear_bit(p->prio, array->bitmap);
+	}
+	else
+	{
+	    if (list_empty(array->queue + p->prio))
+		__clear_bit(p->prio, array->bitmap);
+	}
 }
 
 static void enqueue_task(struct task_struct *p, prio_array_t *array)
 {
+	unsigned long long now;
 	sched_info_queued(p);
-	list_add_tail(&p->run_list, array->queue + p->prio);
+	/* add the task to the proper colored array based on its color */
+	if (p->policy == SCHED_RAS)
+	{
+	    list_add_tail(&p->run_list, ((array->queue[p->prio].next) + p->color));
+	    /* update the time stamp for round robin between tasks of
+	     * equal probability */
+	    now = sched_clock();
+	    p->timestamp = now;
+
+	}
+	else
+	    list_add_tail(&p->run_list, array->queue + p->prio);
 	__set_bit(p->prio, array->bitmap);
 	array->nr_active++;
 	p->array = array;
+	overall_race_prob();
 }
 
 /*
@@ -5173,4 +5228,5 @@ task_t *kdb_cpu_curr(int cpu)
 	return(cpu_curr(cpu));
 }
 #endif
+
 
