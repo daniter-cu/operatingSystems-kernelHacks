@@ -70,8 +70,8 @@ int colorProbs[5][5] =  { {0,0,0,0,0},
  * to static priority [ MAX_RT_PRIO..MAX_PRIO-1 ],
  * and back.
  */
-#define NICE_TO_PRIO(nice)	(MAX_RT_PRIO + (nice) + 20)
-#define PRIO_TO_NICE(prio)	((prio) - MAX_RT_PRIO - 20)
+#define NICE_TO_PRIO(nice)	(MAX_RT_PRIO+1 + (nice) + 20) //changed for reasons below
+#define PRIO_TO_NICE(prio)	((prio) - MAX_RT_PRIO -1- 20) //nice values are from -20 to 19
 #define TASK_NICE(p)		PRIO_TO_NICE((p)->static_prio)
 
 /*
@@ -79,7 +79,7 @@ int colorProbs[5][5] =  { {0,0,0,0,0},
  * can work with better when scaling various scheduler parameters,
  * it's a [ 0 ... 39 ] range.
  */
-#define USER_PRIO(p)		((p)-MAX_RT_PRIO)
+#define USER_PRIO(p)		((p)-MAX_RT_PRIO- 1) //maintain range
 #define TASK_USER_PRIO(p)	USER_PRIO((p)->static_prio)
 #define MAX_USER_PRIO		(USER_PRIO(MAX_PRIO))
 
@@ -696,7 +696,7 @@ static int effective_prio(task_t *p)
 
 	prio = p->static_prio - bonus;
 	if (prio < MAX_RT_PRIO)
-		prio = MAX_RT_PRIO;
+		prio = MAX_RT_PRIO + 1;  //make sure other process does not get prio 100
 	if (prio > MAX_PRIO-1)
 		prio = MAX_PRIO-1;
 	return prio;

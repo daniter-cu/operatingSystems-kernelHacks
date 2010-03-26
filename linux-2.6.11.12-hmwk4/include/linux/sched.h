@@ -130,6 +130,8 @@ extern unsigned long nr_iowait(void);
 #define SCHED_NORMAL		0
 #define SCHED_FIFO		1
 #define SCHED_RR		2
+#define SCHED_RAS		4
+
 
 struct sched_param {
 	int sched_priority;
@@ -355,8 +357,8 @@ struct signal_struct {
 
 #define MAX_USER_RT_PRIO	100
 #define MAX_RT_PRIO		MAX_USER_RT_PRIO
-
-#define MAX_PRIO		(MAX_RT_PRIO + 40)
+#define RAS_PRIO		100
+#define MAX_PRIO		(RAS_PRIO + 41)
 
 #define rt_task(p)		(unlikely((p)->prio < MAX_RT_PRIO))
 
