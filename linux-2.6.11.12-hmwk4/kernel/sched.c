@@ -202,6 +202,7 @@ struct prio_array {
 	unsigned int nr_active;
 	unsigned long bitmap[BITMAP_SIZE];
 	struct list_head queue[MAX_PRIO];
+	struct list_head colorqueue[COLOR_MAX + 1];
 };
 
 /*
@@ -5061,6 +5062,15 @@ void __init sched_init(void)
 			}
 			// delimiter for bitsearch
 			__set_bit(MAX_PRIO, array->bitmap);
+		}
+
+		rq->active->queue[RAS_PRIO].next = rq->active->colorqueue;
+		rq->expired->queue[RAS_PRIO].next = rq->expired->colorqueue;
+		
+		for (i = 0; i < 5; i++)
+		{
+			INIT_LIST_HEAD(rq->active->colorqueue + i);
+			INIT_LIST_HEAD(rq->expired->colorqueue + i);
 		}
 	}
 
