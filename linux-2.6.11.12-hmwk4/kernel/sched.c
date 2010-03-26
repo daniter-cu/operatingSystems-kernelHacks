@@ -299,7 +299,7 @@ asmlinkage long sys_getprob(int color1, int color2)
 {
     int prob;
     prob = colorProbs[color1][color2];
-    if (prob > 10 || prob < 0)
+    if (!IS_VALID_PROB(prob))
 	return -1;
     else
     	return prob;
@@ -311,13 +311,13 @@ asmlinkage long sys_getprob(int color1, int color2)
  */
 asmlinkage long sys_setprob(int color1, int color2, int prob)
 {
-  /* check params */
-  if(!IS_VALID_COLOR(color1) || !IS_VALID_COLOR(color2) || !IS_VALID_PROB(prob)) {
-    return -EINVAL;
-  }
-  /* set both sides of matrix */
-  colorProbs[color1][color2] = prob;
-  colorProbs[color2][color1] = prob;
+    /* check params */
+    if(!IS_VALID_COLOR(color1) || !IS_VALID_COLOR(color2) || !IS_VALID_PROB(prob)) {
+	return -EINVAL;
+    }
+    /* set both sides of matrix */
+    colorProbs[color1][color2] = prob;
+    colorProbs[color2][color1] = prob;
     return 0;
 };
 
@@ -332,26 +332,25 @@ asmlinkage long sys_getcolor(int pid)
 
 asmlinkage long sys_setcolor(int pid, int color)
 {
-  task_t *tsk;
-  /* check uid for root */
-  if(sys_getuid()!=0) {
-    return -EPERM;
-  }
-  /* check valid color */
-  if(!IS_VALID_COLOR(color)) {
-    return -EINVAL;
-  }
-  /* get task struct */
+    task_t *tsk;
+    /* check uid for root */
+    if(sys_getuid()!=0) {
+	return -EPERM;
+    }
+    /* check valid color */
+    if(!IS_VALID_COLOR(color)) {
+	return -EINVAL;
+    }
+    /* get task struct */
   
-  tsk = find_task_by_pid(pid);
-  if(tsk==NULL) {
-    return -EINVAL;
-  }
-  /* set color */
-  tsk->color = color;
+    tsk = find_task_by_pid(pid);
+    if(tsk==NULL) {
+	return -EINVAL;
+    }
+    /* set color */
+    tsk->color = color;
     return 0;
 };
-
 
 static DEFINE_PER_CPU(struct runqueue, runqueues);
 
