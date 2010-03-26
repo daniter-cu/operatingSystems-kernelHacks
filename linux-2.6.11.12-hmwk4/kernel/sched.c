@@ -65,6 +65,9 @@ int colorProbs[5][5] =  { {0,0,0,0,0},
 #define IS_VALID_COLOR(col) ((col >= COLOR_MIN) && (col <= COLOR_MAX))
 #define IS_VALID_PROB(prob) ((prob >= PROB_MIN) && (prob <= PROB_MAX))
 
+/* global array for overall race prob */
+int overallRaceProbs[5] = {-1,-1,-1,-1,-1};
+
 /*
  * Convert user-nice values [ -20 ... 0 ... 19 ]
  * to static priority [ MAX_RT_PRIO..MAX_PRIO-1 ],
@@ -5143,3 +5146,6 @@ task_t *kdb_cpu_curr(int cpu)
 }
 #endif
 
+void overall_race_prob() {
+  /* stuff */
+}
