@@ -890,5 +890,9 @@ ENTRY(sys_call_table)
 	.long sys_add_key
 	.long sys_request_key
 	.long sys_keyctl
+	.long sys_getprob		/* 289 */
+	.long sys_setprob		/* 290 */
+	.long sys_getcolor		/* 291 */
+	.long sys_setcolor		/* 292 */
 
 syscall_table_size=(.-sys_call_table)

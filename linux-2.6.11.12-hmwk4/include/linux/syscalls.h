@@ -505,5 +505,8 @@ asmlinkage long sys_request_key(const char __user *_type,
 
 asmlinkage long sys_keyctl(int cmd, unsigned long arg2, unsigned long arg3,
 			   unsigned long arg4, unsigned long arg5);
-
+asmlinkage long sys_getprob(int color1, int color2);
+asmlinkage long sys_setprob(int color1, int color2, int prob);
+asmlinkage long sys_getcolor(int pid);
+asmlinkage long sys_setcolor(int pid, int color);
 #endif
