@@ -38,7 +38,7 @@
 #include <linux/smp.h>
 #include <linux/threads.h>
 #include <linux/timer.h>
-#include <linux/rcupdate.h>
+#include <linux/rcupdate.>
 #include <linux/cpu.h>
 #include <linux/percpu.h>
 #include <linux/kthread.h>
@@ -51,10 +51,10 @@
 
 /* OS HW4 */
 /* Stores probabilities of color pairs.  Defaults to 0. */
-int[4][4] colorProbs = { {0,0,0,0},
-		         {0,0,0,0},
-		         {0,0,0,0}, 
-		         {0,0,0,0} };
+int[5][5] colorProbs = { {0,0,0,0,0},
+		         {0,0,0,0,0},
+		         {0,0,0,0,0}, 
+		         {0,0,0,0,0} };
 
 /*
  * Convert user-nice values [ -20 ... 0 ... 19 ]
