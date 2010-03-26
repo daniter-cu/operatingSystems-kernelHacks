@@ -640,25 +640,51 @@ static inline void sched_info_switch(task_t *prev, task_t *next)
  */
 static void dequeue_task(struct task_struct *p, prio_array_t *array)
 {
+    	int i;
+	int colors_empty;		//flag that tells whether or not to clear the bit
+	colors_empty = 0;		
 	array->nr_active--;
-	list_del(&p->run_list);
-	if (list_empty(array->queue + p->prio))
+	list_del(&p->run_list);		//delete the task
+	if (p->policy == SCHED_RAS)
+	{
+	    /* run through the 5 subarrays of colors from 0-4 */
+	    for (i = 0; i < COLOR_MAX+1; i++)
+	    {
+		/* if all 5 subarrays are not empty, set the flag to 1 */
+		if (!list_empty((array->queue[p->prio].next) + i))
+		    colors_empty = 1;
+	    }
+	    /* if all 5 subarrays are empty, clear the bit to 0 */
+	    if (!colors_empty)
 		__clear_bit(p->prio, array->bitmap);
+	}
+	else
+	{
+	    if (list_empty(array->queue + p->prio))
+		__clear_bit(p->prio, array->bitmap);
+	}
 }
 
 static void enqueue_task(struct task_struct *p, prio_array_t *array)
 {
+	unsigned long long now;
 	sched_info_queued(p);
-	if (p->prio == 100)
+	/* add the task to the proper colored array based on its color */
+	if (p->policy == SCHED_RAS)
 	{
-	    //not right
-	    list_add_tail(&p->run_list, array->queue + p->prio);
+	    list_add_tail(&p->run_list, ((array->queue[p->prio].next) + p->color));
+	    /* update the time stamp for round robin between tasks of
+	     * equal probability */
+	    now = sched_clock();
+	    p->timestamp = now;
+
 	}
 	else
 	    list_add_tail(&p->run_list, array->queue + p->prio);
 	__set_bit(p->prio, array->bitmap);
 	array->nr_active++;
 	p->array = array;
+	overall_race_prob();
 }
 
 /*
