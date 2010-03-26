@@ -299,7 +299,7 @@ asmlinkage long sys_getprob(int color1, int color2)
 {
     int prob;
     prob = colorProbs[color1][color2];
-    if (!IS_VALID_PROB(prob))
+    if (!IS_VALID_PROB(prob)) /* this shouldn't happen, right? */
 	return -1;
     else
     	return prob;
@@ -326,13 +326,13 @@ asmlinkage long sys_getcolor(int pid)
     task_t *task;
     task = find_task_by_pid(pid);
     if (!task)
-	return -1;
+	return -EINVAL;
     return task->color;
 };
 
 asmlinkage long sys_setcolor(int pid, int color)
 {
-    task_t *tsk;
+    task_t *tsk == NULL;
     /* check uid for root */
     if(sys_getuid()!=0) {
 	return -EPERM;
