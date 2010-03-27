@@ -581,21 +581,84 @@ static inline void sched_info_switch(task_t *prev, task_t *next)
 #define sched_info_switch(t, next)	do { } while (0)
 #endif /* CONFIG_SCHEDSTATS */
 
+<<<<<<< HEAD:linux-2.6.11.12-hmwk4/kernel/sched.c
+=======
+void overall_race_prob() {
+  runqueue_t *rq;
+  int color1, color2, j, nr_tasks_cur_color1;
+  struct list_head *front_task;
+  struct list_head *cur_task;
+  for(color1 = COLOR_MIN; color1 <= COLOR_MAX; ++color1) {
+    nr_tasks_cur_color1 = 0;
+    for(j = 0; j < NR_CPUS; ++j) {
+      rq = cpu_rq(j);
+      /* if no tasks of this color, continue to next CPU */
+      if(list_empty(rq->active->queue[RAS_PRIO].next)) {
+	continue;
+      }
+      else {
+	front_task = rq->active->queue[RAS_PRIO].next;
+	cur_task = front_task;
+	do {
+	  nr_tasks_cur_color1++;
+	  cur_task = cur_task->next;
+	}while(cur_task != front_task);	
+      }    
+    }
+    for(color2 = color1; color2 <= COLOR_MAX; ++color2) {
+      overallRaceProbs[color1] = sys_getprob(color1, color2) * nr_tasks_cur_color1;
+    }    
+  }
+} 
+
+
+>>>>>>> 5c7ef9e6f098924179fa7fc35e7b3f5b19ba36e9:linux-2.6.11.12-hmwk4/kernel/sched.c
 /*
  * Adding/removing a task to/from a priority array:
  */
 static void dequeue_task(struct task_struct *p, prio_array_t *array)
 {
 	array->nr_active--;
+<<<<<<< HEAD:linux-2.6.11.12-hmwk4/kernel/sched.c
 	list_del(&p->run_list);
 	if (list_empty(array->queue + p->prio))
+=======
+	list_del(&p->run_list);		//delete the task
+	if (p->policy == SCHED_RAS)
+	{
+	    overall_race_prob();
+	    /* run through the 5 subarrays of colors from 0-4 */
+	    for (i = 0; i < COLOR_MAX+1; i++)
+	    {
+		/* if all 5 subarrays are not empty, set the flag to 1 */
+		if (!list_empty((array->queue[p->prio].next) + i))
+		    colors_empty = 1;
+	    }
+	    /* if all 5 subarrays are empty, clear the bit to 0 */
+	    if (!colors_empty)
+>>>>>>> 5c7ef9e6f098924179fa7fc35e7b3f5b19ba36e9:linux-2.6.11.12-hmwk4/kernel/sched.c
 		__clear_bit(p->prio, array->bitmap);
 }
 
 static void enqueue_task(struct task_struct *p, prio_array_t *array)
 {
 	sched_info_queued(p);
+<<<<<<< HEAD:linux-2.6.11.12-hmwk4/kernel/sched.c
 	list_add_tail(&p->run_list, array->queue + p->prio);
+=======
+	/* add the task to the proper colored array based on its color */
+	if (p->policy == SCHED_RAS)
+	{
+	    list_add_tail(&p->run_list, ((array->queue[p->prio].next) + p->color));
+	    /* update the time stamp for round robin between tasks of
+	     * equal probability */
+	    now = sched_clock();
+	    p->timestamp = now;
+	    overall_race_prob();
+	}
+	else
+	    list_add_tail(&p->run_list, array->queue + p->prio);
+>>>>>>> 5c7ef9e6f098924179fa7fc35e7b3f5b19ba36e9:linux-2.6.11.12-hmwk4/kernel/sched.c
 	__set_bit(p->prio, array->bitmap);
 	array->nr_active++;
 	p->array = array;
@@ -5079,3 +5142,7 @@ task_t *kdb_cpu_curr(int cpu)
 	return(cpu_curr(cpu));
 }
 #endif
+<<<<<<< HEAD:linux-2.6.11.12-hmwk4/kernel/sched.c
+=======
+
+>>>>>>> 5c7ef9e6f098924179fa7fc35e7b3f5b19ba36e9:linux-2.6.11.12-hmwk4/kernel/sched.c
