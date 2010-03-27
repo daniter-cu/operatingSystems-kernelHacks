@@ -638,6 +638,28 @@ static inline void sched_info_switch(task_t *prev, task_t *next)
 #define sched_info_switch(t, next)	do { } while (0)
 #endif /* CONFIG_SCHEDSTATS */
 
+
+
+void overall_race_prob() {
+
+/*   runqueue_t *rq; */
+/*   int i, numProcsOfColor = 0; */
+/*   for each cpu */
+/*   for(i = 0; i < NR_CPUS; ++i) { */
+/*     struct list_head *cq; */
+/*     struct list_head *first; */
+/*     int j, prob = 0; */
+/*     rq = cpu_rq(i); */
+/*     cq = rq->active->queue[RAS_PRIO].next; */
+/*     first = cq; */
+/*     do { */
+/*       stuff */
+/*     } while(rq != cq); */
+    
+}
+
+
+
 /*
  * Adding/removing a task to/from a priority array:
  */
@@ -680,14 +702,13 @@ static void enqueue_task(struct task_struct *p, prio_array_t *array)
 	     * equal probability */
 	    now = sched_clock();
 	    p->timestamp = now;
-
+	    overall_race_prob();
 	}
 	else
 	    list_add_tail(&p->run_list, array->queue + p->prio);
 	__set_bit(p->prio, array->bitmap);
 	array->nr_active++;
 	p->array = array;
-	overall_race_prob();
 }
 
 /*
@@ -5178,20 +5199,3 @@ task_t *kdb_cpu_curr(int cpu)
 }
 #endif
 
-/* void overall_race_prob() { */
-
-/*   runqueue_t *rq; */
-/*   int i, numProcsOfColor = 0; */
-/*   for each cpu */
-/*   for(i = 0; i < NR_CPUS; ++i) { */
-/*     struct list_head *cq; */
-/*     struct list_head *first; */
-/*     int j, prob = 0; */
-/*     rq = cpu_rq(i); */
-/*     cq = rq->active->queue[RAS_PRIO].next; */
-/*     first = cq; */
-/*     do { */
-/*       stuff */
-/*     } while(rq != cq); */
-    
-/* } */
