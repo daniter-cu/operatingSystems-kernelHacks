@@ -47,34 +47,15 @@
 #include <linux/times.h>
 #include <asm/tlb.h>
 
-
 #include <asm/unistd.h>
-
-/* OS HW4 */
-/* Stores probabilities of color pairs.  Defaults to 0. */
-int colorProbs[5][5] =  { {0,0,0,0,0},
-		         {0,0,0,0,0},
-		         {0,0,0,0,0}, 
-		         {0,0,0,0,0},
-                         {0,0,0,0,0} };
-#define COLOR_MAX 4
-#define COLOR_MIN 0
-#define PROB_MAX 10
-#define PROB_MIN 0
-
-#define IS_VALID_COLOR(col) ((col >= COLOR_MIN) && (col <= COLOR_MAX))
-#define IS_VALID_PROB(prob) ((prob >= PROB_MIN) && (prob <= PROB_MAX))
-
-/* global array for overall race prob */
-int overallRaceProbs[5] = {-1,-1,-1,-1,-1};
 
 /*
  * Convert user-nice values [ -20 ... 0 ... 19 ]
  * to static priority [ MAX_RT_PRIO..MAX_PRIO-1 ],
  * and back.
  */
-#define NICE_TO_PRIO(nice)	(MAX_RT_PRIO+1 + (nice) + 20) //changed for reasons below
-#define PRIO_TO_NICE(prio)	((prio) - MAX_RT_PRIO -1- 20) //nice values are from -20 to 19
+#define NICE_TO_PRIO(nice)	(MAX_RT_PRIO + (nice) + 20)
+#define PRIO_TO_NICE(prio)	((prio) - MAX_RT_PRIO - 20)
 #define TASK_NICE(p)		PRIO_TO_NICE((p)->static_prio)
 
 /*
@@ -82,7 +63,7 @@ int overallRaceProbs[5] = {-1,-1,-1,-1,-1};
  * can work with better when scaling various scheduler parameters,
  * it's a [ 0 ... 39 ] range.
  */
-#define USER_PRIO(p)		((p)-MAX_RT_PRIO- 1) //maintain range
+#define USER_PRIO(p)		((p)-MAX_RT_PRIO)
 #define TASK_USER_PRIO(p)	USER_PRIO((p)->static_prio)
 #define MAX_USER_PRIO		(USER_PRIO(MAX_PRIO))
 
@@ -185,11 +166,6 @@ int overallRaceProbs[5] = {-1,-1,-1,-1,-1};
 
 static unsigned int task_timeslice(task_t *p)
 {
-    	//RAS tasks should have a timeslice of 100ms.
-	if(p->policy == SCHED_RAS)
-	    return 100;
-
-
 	if (p->static_prio < NICE_TO_PRIO(0))
 		return SCALE_PRIO(DEF_TIMESLICE*4, p->static_prio);
 	else
@@ -210,7 +186,6 @@ struct prio_array {
 	unsigned int nr_active;
 	unsigned long bitmap[BITMAP_SIZE];
 	struct list_head queue[MAX_PRIO];
-	struct list_head colorqueue[COLOR_MAX + 1];
 };
 
 /*
@@ -303,64 +278,6 @@ struct runqueue {
 #endif
 };
 
-
-asmlinkage long sys_getprob(int color1, int color2)
-{
-    int prob;
-    prob = colorProbs[color1][color2];
-    if (!IS_VALID_PROB(prob)) /* this shouldn't happen, right? */
-	return -1;
-    else
-    	return prob;
-};
-
-/* 
- * Using both sides of the matrix.
- * 
- */
-asmlinkage long sys_setprob(int color1, int color2, int prob)
-{
-    /* check params */
-    if(!IS_VALID_COLOR(color1) || !IS_VALID_COLOR(color2) || !IS_VALID_PROB(prob)) {
-	return -EINVAL;
-    }
-    /* set both sides of matrix */
-    colorProbs[color1][color2] = prob;
-    colorProbs[color2][color1] = prob;
-    return 0;
-};
-
-asmlinkage long sys_getcolor(int pid)
-{
-    task_t *task;
-    task = find_task_by_pid(pid);
-    if (!task)
-	return -EINVAL;
-    return task->color;
-};
-
-asmlinkage long sys_setcolor(int pid, int color)
-{
-    task_t *tsk = NULL;
-    /* check uid for root */
-    if(sys_getuid()!=0) {
-	return -EPERM;
-    }
-    /* check valid color */
-    if(!IS_VALID_COLOR(color)) {
-	return -EINVAL;
-    }
-    /* get task struct */
-  
-    tsk = find_task_by_pid(pid);
-    if(tsk==NULL) {
-	return -EINVAL;
-    }
-    /* set color */
-    tsk->color = color;
-    return 0;
-};
-
 static DEFINE_PER_CPU(struct runqueue, runqueues);
 
 #define for_each_domain(cpu, domain) \
@@ -405,6 +322,27 @@ static inline void task_rq_unlock(runqueue_t *rq, unsigned long *flags)
 	__releases(rq->lock)
 {
 	spin_unlock_irqrestore(&rq->lock, *flags);
+}
+
+
+asmlinkage long sys_getprob(int color1, int color2)
+{
+    return 0;
+}
+
+asmlinkage long sys_setprob(int color1, int color2, int prob)
+{
+    return 0;
+}
+
+asmlinkage long sys_getcolor(int pid)
+{
+    return 0;
+}
+
+asmlinkage long sys_setcolor(int pid, int color)
+{
+    return 0;
 }
 
 #ifdef CONFIG_SCHEDSTATS
@@ -643,83 +581,21 @@ static inline void sched_info_switch(task_t *prev, task_t *next)
 #define sched_info_switch(t, next)	do { } while (0)
 #endif /* CONFIG_SCHEDSTATS */
 
-void overall_race_prob() {
-  runqueue_t *rq;
-  int color1, color2, j, nr_tasks_cur_color1;
-  struct list_head *front_task;
-  struct list_head *cur_task;
-  for(color1 = COLOR_MIN; color1 <= COLOR_MAX; ++color1) {
-    nr_tasks_cur_color1 = 0;
-    for(j = 0; j < NR_CPUS; ++j) {
-      rq = cpu_rq(j);
-      /* if no tasks of this color, continue to next CPU */
-      if(list_empty(rq->active->queue[RAS_PRIO].next)) {
-	continue;
-      }
-      else {
-	front_task = rq->active->queue[RAS_PRIO].next;
-	cur_task = front_task;
-	do {
-	  nr_tasks_cur_color1++;
-	  cur_task = cur_task->next;
-	}while(cur_task != front_task);	
-      }    
-    }
-    for(color2 = color1; color2 <= COLOR_MAX; ++color2) {
-      overallRaceProbs[color1] = sys_getprob(color1, color2) * nr_tasks_cur_color1;
-    }    
-  }
-} 
-
-
-
 /*
  * Adding/removing a task to/from a priority array:
  */
 static void dequeue_task(struct task_struct *p, prio_array_t *array)
 {
-    	int i;
-	int colors_empty;		//flag that tells whether or not to clear the bit
-	colors_empty = 0;		
 	array->nr_active--;
-	list_del(&p->run_list);		//delete the task
-	if (p->policy == SCHED_RAS)
-	{
-	    /* run through the 5 subarrays of colors from 0-4 */
-	    for (i = 0; i < COLOR_MAX+1; i++)
-	    {
-		/* if all 5 subarrays are not empty, set the flag to 1 */
-		if (!list_empty((array->queue[p->prio].next) + i))
-		    colors_empty = 1;
-	    }
-	    /* if all 5 subarrays are empty, clear the bit to 0 */
-	    if (!colors_empty)
+	list_del(&p->run_list);
+	if (list_empty(array->queue + p->prio))
 		__clear_bit(p->prio, array->bitmap);
-	}
-	else
-	{
-	    if (list_empty(array->queue + p->prio))
-		__clear_bit(p->prio, array->bitmap);
-	}
 }
 
 static void enqueue_task(struct task_struct *p, prio_array_t *array)
 {
-	unsigned long long now;
 	sched_info_queued(p);
-	/* add the task to the proper colored array based on its color */
-	if (p->policy == SCHED_RAS)
-	{
-	    list_add_tail(&p->run_list, ((array->queue[p->prio].next) + p->color));
-	    /* update the time stamp for round robin between tasks of
-	     * equal probability */
-	    now = sched_clock();
-	    p->timestamp = now;
-	    overall_race_prob();
-
-	}
-	else
-	    list_add_tail(&p->run_list, array->queue + p->prio);
+	list_add_tail(&p->run_list, array->queue + p->prio);
 	__set_bit(p->prio, array->bitmap);
 	array->nr_active++;
 	p->array = array;
@@ -767,7 +643,7 @@ static int effective_prio(task_t *p)
 
 	prio = p->static_prio - bonus;
 	if (prio < MAX_RT_PRIO)
-		prio = MAX_RT_PRIO + 1;  //make sure other process does not get prio 100
+		prio = MAX_RT_PRIO;
 	if (prio > MAX_PRIO-1)
 		prio = MAX_PRIO-1;
 	return prio;
@@ -3549,32 +3425,6 @@ int sched_setscheduler(struct task_struct *p, int policy, struct sched_param *pa
 	unsigned long flags;
 	runqueue_t *rq;
 
-	rq = task_rq_lock(p, &flags);
-
-	if(policy == SCHED_RAS)
-	{
-	   	if(!IS_VALID_COLOR(p->color))
-		{
-			task_rq_unlock(rq, &flags);
-			return -EINVAL;
-		}
-	    
-	    	array = p->array;
-	    	if (array)
-	              deactivate_task(p, rq);
-		
-		p->policy = policy;
-		p->prio = RAS_PRIO;
-		p->rt_priority = RAS_PRIO;
-		
-		if(array)
-		       enqueue_task(p, array);
-
-		task_rq_unlock(rq, &flags);
-		return 0;
-	}
-	task_rq_unlock(rq, &flags);
-
 recheck:
 	/* double check policy once rq lock held */
 	if (policy < 0)
@@ -5153,15 +5003,6 @@ void __init sched_init(void)
 			// delimiter for bitsearch
 			__set_bit(MAX_PRIO, array->bitmap);
 		}
-
-		rq->active->queue[RAS_PRIO].next = rq->active->colorqueue;
-		rq->expired->queue[RAS_PRIO].next = rq->expired->colorqueue;
-		
-		for (i = 0; i < 5; i++)
-		{
-			INIT_LIST_HEAD(rq->active->colorqueue + i);
-			INIT_LIST_HEAD(rq->expired->colorqueue + i);
-		}
 	}
 
 	/*
@@ -5238,5 +5079,3 @@ task_t *kdb_cpu_curr(int cpu)
 	return(cpu_curr(cpu));
 }
 #endif
-
-
