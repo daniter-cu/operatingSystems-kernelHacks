@@ -644,22 +644,32 @@ static inline void sched_info_switch(task_t *prev, task_t *next)
 #endif /* CONFIG_SCHEDSTATS */
 
 void overall_race_prob() {
-
-/*   runqueue_t *rq; */
-/*   int i, numProcsOfColor = 0; */
-/*   for each cpu */
-/*   for(i = 0; i < NR_CPUS; ++i) { */
-/*     struct list_head *cq; */
-/*     struct list_head *first; */
-/*     int j, prob = 0; */
-/*     rq = cpu_rq(i); */
-/*     cq = rq->active->queue[RAS_PRIO].next; */
-/*     first = cq; */
-/*     do { */
-/*       stuff */
-/*     } while(rq != cq); */
-    
- } 
+  runqueue_t *rq;
+  int color1, color2, j, nr_tasks_cur_color1;
+  struct list_head *front_task;
+  struct list_head *cur_task;
+  for(color1 = COLOR_MIN; color1 <= COLOR_MAX; ++color1) {
+    nr_tasks_cur_color1 = 0;
+    for(j = 0; j < NR_CPUS; ++j) {
+      rq = cpu_rq(j);
+      /* if no tasks of this color, continue to next CPU */
+      if(list_empty(rq->active->queue[RAS_PRIO].next)) {
+	continue;
+      }
+      else {
+	front_task = rq->active->queue[RAS_PRIO].next;
+	cur_task = front_task;
+	do {
+	  nr_tasks_cur_color1++;
+	  cur_task = cur_task->next;
+	}while(cur_task != front_task);	
+      }    
+    }
+    for(color2 = color1; color2 <= COLOR_MAX; ++color2) {
+      overallRaceProbs[color1] = sys_getprob(color1, color2) * nr_tasks_cur_color1;
+    }    
+  }
+} 
 
 
 
