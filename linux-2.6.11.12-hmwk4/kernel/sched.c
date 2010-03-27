@@ -675,19 +675,52 @@ void overall_race_prob() {
  */
 static void dequeue_task(struct task_struct *p, prio_array_t *array)
 {
+     	int i;
+	int colors_empty;		//flag that tells whether or not to clear the bit
+	colors_empty = 0;		
 	array->nr_active--;
 	list_del(&p->run_list);
+	if (p->policy == SCHED_RAS)
+	{
+	    overall_race_prob();
+	    /* run through the 5 subarrays of colors from 0-4 */
+	    for (i = 0; i < COLOR_MAX+1; i++)
+	    {
+		/* if all 5 subarrays are not empty, set the flag to 1 */
+		if (!list_empty((array->queue[p->prio].next) + i))
+		    colors_empty = 1;
+	    }
+	    /* if all 5 subarrays are empty, clear the bit to 0 */
+	    if (!colors_empty)
+		__clear_bit(p->prio, array->bitmap);
+	}
+	else
+	{
 	if (list_empty(array->queue + p->prio))
 		__clear_bit(p->prio, array->bitmap);
+	}
 }
 
 static void enqueue_task(struct task_struct *p, prio_array_t *array)
 {
-	sched_info_queued(p);
-	list_add_tail(&p->run_list, array->queue + p->prio);
-	__set_bit(p->prio, array->bitmap);
-	array->nr_active++;
-	p->array = array;
+  unsigned long long now;
+  sched_info_queued(p);
+  /* add the task to the proper colored array based on its color */
+  if (p->policy == SCHED_RAS)
+    {
+      list_add_tail(&p->run_list, ((array->queue[p->prio].next) + p->color));
+      /* update the time stamp for round robin between tasks of
+       * equal probability */
+      now = sched_clock();
+      p->timestamp = now;
+      overall_race_prob();
+    }
+  else {
+    list_add_tail(&p->run_list, array->queue + p->prio);
+  }
+  __set_bit(p->prio, array->bitmap);
+  array->nr_active++;
+  p->array = array;
 }
 
 /*
