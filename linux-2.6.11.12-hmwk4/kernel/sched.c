@@ -643,6 +643,7 @@ static inline void sched_info_switch(task_t *prev, task_t *next)
 #define sched_info_switch(t, next)	do { } while (0)
 #endif /* CONFIG_SCHEDSTATS */
 
+void overall_race_prob() {
   runqueue_t *rq;
   int color1, color2, j, nr_tasks_cur_color1;
   struct list_head *front_task;
@@ -671,7 +672,6 @@ static inline void sched_info_switch(task_t *prev, task_t *next)
 } 
 
 
-
 /*
  * Adding/removing a task to/from a priority array:
  */
@@ -684,6 +684,7 @@ static void dequeue_task(struct task_struct *p, prio_array_t *array)
 	list_del(&p->run_list);		//delete the task
 	if (p->policy == SCHED_RAS)
 	{
+	    overall_race_prob();
 	    /* run through the 5 subarrays of colors from 0-4 */
 	    for (i = 0; i < COLOR_MAX+1; i++)
 	    {
