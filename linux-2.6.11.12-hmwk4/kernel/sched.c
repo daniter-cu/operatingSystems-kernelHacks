@@ -49,6 +49,25 @@
 
 #include <asm/unistd.h>
 
+/* OS HW4 */
+/* Stores probabilities of color pairs.  Defaults to 0. */
+int colorProbs[5][5] =  { {0,0,0,0,0},
+		         {0,0,0,0,0},
+		         {0,0,0,0,0}, 
+		         {0,0,0,0,0},
+                         {0,0,0,0,0} };
+#define COLOR_MAX 4
+#define COLOR_MIN 0
+#define PROB_MAX 10
+#define PROB_MIN 0
+
+#define IS_VALID_COLOR(col) ((col >= COLOR_MIN) && (col <= COLOR_MAX))
+#define IS_VALID_PROB(prob) ((prob >= PROB_MIN) && (prob <= PROB_MAX))
+
+/* global array for overall race prob */
+int overallRaceProbs[5] = {-1,-1,-1,-1,-1};
+
+
 /*
  * Convert user-nice values [ -20 ... 0 ... 19 ]
  * to static priority [ MAX_RT_PRIO..MAX_PRIO-1 ],
@@ -559,6 +578,97 @@ static inline void sched_info_switch(task_t *prev, task_t *next)
 #define sched_info_queued(t)		do { } while (0)
 #define sched_info_switch(t, next)	do { } while (0)
 #endif /* CONFIG_SCHEDSTATS */
+
+asmlinkage long sys_getprob(int color1, int color2)
+{
+    int prob;
+    prob = colorProbs[color1][color2];
+    if (!IS_VALID_PROB(prob)) /* this shouldn't happen, right? */
+	return -1;
+    else
+    	return prob;
+};
+
+/* 
+ * Using both sides of the matrix.
+ * 
+ */
+asmlinkage long sys_setprob(int color1, int color2, int prob)
+{
+    /* check params */
+    if(!IS_VALID_COLOR(color1) || !IS_VALID_COLOR(color2) || !IS_VALID_PROB(prob)) {
+	return -EINVAL;
+    }
+    /* set both sides of matrix */
+    colorProbs[color1][color2] = prob;
+    colorProbs[color2][color1] = prob;
+    return 0;
+};
+
+asmlinkage long sys_getcolor(int pid)
+{
+    task_t *task;
+    task = find_task_by_pid(pid);
+    if (!task)
+	return -EINVAL;
+    return task->color;
+};
+
+asmlinkage long sys_setcolor(int pid, int color)
+{
+    task_t *tsk = NULL;
+    /* check uid for root */
+    if(sys_getuid()!=0) {
+	return -EPERM;
+    }
+    /* check valid color */
+    if(!IS_VALID_COLOR(color)) {
+	return -EINVAL;
+    }
+    /* get task struct */
+  
+    tsk = find_task_by_pid(pid);
+    if(tsk==NULL) {
+	return -EINVAL;
+    }
+    /* set color */
+    tsk->color = color;
+    return 0;
+};
+
+void overall_race_prob() {
+  runqueue_t *rq; /* runqueue of current cpu */
+  int color1, color2, j, nr_tasks_cur_color1;
+  struct list_head *front_task;
+  struct list_head *cur_task;
+  for(color1 = COLOR_MIN; color1 <= COLOR_MAX; ++color1) {
+    nr_tasks_cur_color1 = 0;
+    /* foreach cpu */
+    for(j = 0; j < NR_CPUS; ++j) {
+      rq = cpu_rq(j);
+      /* if no tasks of this color, continue to next CPU */
+      if(list_empty(rq->active->queue[RAS_PRIO].next + color1)) {
+	continue;
+      }
+      else {
+	/* save the front task to check cycle */
+	front_task = rq->active->queue[RAS_PRIO].next + color1;
+	cur_task = front_task;
+	do {
+	  /* count the number of tasks of this color */
+	  nr_tasks_cur_color1++;
+	  cur_task = cur_task->next;
+	}while(cur_task != front_task);	
+      }    
+    }
+    /* computer probability of color1 vs. all other colors */
+    for(color2 = color1; color2 <= COLOR_MAX; ++color2) {
+      /* multiplying by nr_tasks_cur_color1 is same as adding for all colors */
+      overallRaceProbs[color1] = sys_getprob(color1, color2) * nr_tasks_cur_color1;
+    }    
+  }
+}
+
 
 /*
  * Adding/removing a task to/from a priority array:
