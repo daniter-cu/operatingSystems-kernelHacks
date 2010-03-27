@@ -82,7 +82,7 @@ int overallRaceProbs[5] = {-1,-1,-1,-1,-1};
  * can work with better when scaling various scheduler parameters,
  * it's a [ 0 ... 39 ] range.
  */
-#define USER_PRIO(p)		((p)-MAX_RT_PRIO)
+#define USER_PRIO(p)		((p)-MAX_RT_PRIO-1)
 #define TASK_USER_PRIO(p)	USER_PRIO((p)->static_prio)
 #define MAX_USER_PRIO		(USER_PRIO(MAX_PRIO))
 
@@ -185,6 +185,9 @@ int overallRaceProbs[5] = {-1,-1,-1,-1,-1};
 
 static unsigned int task_timeslice(task_t *p)
 {
+    	if (p->policy == SCHED_RAS)
+		return 100;
+
 	if (p->static_prio < NICE_TO_PRIO(0))
 		return SCALE_PRIO(DEF_TIMESLICE*4, p->static_prio);
 	else
@@ -205,6 +208,7 @@ struct prio_array {
 	unsigned int nr_active;
 	unsigned long bitmap[BITMAP_SIZE];
 	struct list_head queue[MAX_PRIO];
+	struct list_head colorqueue[COLOR_MAX + 1];
 };
 
 /*
@@ -765,7 +769,7 @@ static int effective_prio(task_t *p)
 
 	prio = p->static_prio - bonus;
 	if (prio < MAX_RT_PRIO)
-		prio = MAX_RT_PRIO;
+		prio = MAX_RT_PRIO + 1;
 	if (prio > MAX_PRIO-1)
 		prio = MAX_PRIO-1;
 	return prio;
@@ -5096,6 +5100,7 @@ void __init sched_init(void)
 {
 	runqueue_t *rq;
 	int i, j, k;
+	int iter;
 
 	for (i = 0; i < NR_CPUS; i++) {
 		prio_array_t *array;
@@ -5125,6 +5130,16 @@ void __init sched_init(void)
 			// delimiter for bitsearch
 			__set_bit(MAX_PRIO, array->bitmap);
 		}
+
+		for (iter=0; iter < 5; iter++)
+		{
+		    INIT_LIST_HEAD(rq->active->colorqueue + iter);
+		    INIT_LIST_HEAD(rq->expired->colorqueue + iter);
+		}
+
+
+		rq->active->queue[RAS_PRIO].next = rq->active->colorqueue;
+		rq->expired->queue[RAS_PRIO].next = rq->expired->colorqueue;
 	}
 
 	/*
