@@ -705,6 +705,7 @@ static void enqueue_task(struct task_struct *p, prio_array_t *array)
 	     * equal probability */
 	    now = sched_clock();
 	    p->timestamp = now;
+	    overall_race_prob();
 
 	}
 	else
@@ -712,7 +713,6 @@ static void enqueue_task(struct task_struct *p, prio_array_t *array)
 	__set_bit(p->prio, array->bitmap);
 	array->nr_active++;
 	p->array = array;
-	overall_race_prob();
 }
 
 /*
