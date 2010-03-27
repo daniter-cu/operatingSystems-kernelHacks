@@ -640,7 +640,7 @@ asmlinkage long sys_setcolor(int pid, int color)
     return 0;
 };
 
-void overall_race_prob() {
+void overall_race_prob(void) {
   runqueue_t *rq; /* runqueue of current cpu */
   int color1, color2, j, nr_tasks_cur_color1;
   struct list_head *front_task;
