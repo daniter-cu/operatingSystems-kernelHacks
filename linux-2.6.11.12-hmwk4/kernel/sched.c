@@ -3551,6 +3551,32 @@ int sched_setscheduler(struct task_struct *p, int policy, struct sched_param *pa
 	unsigned long flags;
 	runqueue_t *rq;
 
+	rq = task_rq_lock(p, &flags);
+
+	if(policy == SCHED_RAS)
+	{
+	   	if(!IS_VALID_COLOR(p->color))
+		{
+			task_rq_unlock(rq, &flags);
+			return -EINVAL;
+		}
+	    
+	    	array = p->array;
+	    	if (array)
+	              deactivate_task(p, rq);
+		
+		p->policy = policy;
+		p->prio = RAS_PRIO;
+		p->rt_priority = RAS_PRIO;
+		
+		if(array)
+		       enqueue_task(p, array);
+
+		task_rq_unlock(rq, &flags);
+		return 0;
+	}
+	task_rq_unlock(rq, &flags);
+
 recheck:
 	/* double check policy once rq lock held */
 	if (policy < 0)
