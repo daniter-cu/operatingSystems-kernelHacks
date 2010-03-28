@@ -2926,8 +2926,9 @@ go_idle:
 	idx = sched_find_first_bit(array->bitmap);
 	queue = array->queue + idx;
 
-	if(idx==SCHED_RAS) {
-	  int min_race_prob = PROB_MAX, nr_minprob = 0, iter = 0, color_min_race = -1;
+	if(idx==RAS_PRIO) {
+	  int min_race_prob = PROB_MAX, iter = 0, color_min_race_oldest = -1;
+	  task_t *task_to_check;
 	  unsigned long long timestamp_to_compare = -1;
 	  /* find least race prob */
 	  for(iter = 0; iter < 5; ++iter) {
@@ -2941,12 +2942,19 @@ go_idle:
 	    if(overallRaceProbs[iter]==-1) continue;
 	    if(overallRaceProbs[iter] == min_race_prob) {
 	      /* get timestamp of next task of this color */
-	      /* save if older than timestamp_to_compare || timestamp_to_compare != -1 */
-	      /* if timestamp older, save color_min_race = iter */
+	      task_to_check = list_entry(queue->next + iter, task_t, run_list);
+	      /* save if older than timestamp_to_compare || timestamp_to_compare == -1 */
+	      if(timestamp_to_compare == -1 || task_to_check->timestamp < timestamp_to_compare) {
+		timestamp_to_compare = task_to_check->timestamp;
+		/* if timestamp older, save color_min_race = iter */
+		color_min_race_oldest = iter;
+	      }
 	    }
 	  }
 	  /* set next = list_entry(...) for color_min_race->next */
-	  /* then jump to where in code? */
+	  next = list_entry(queue->next + color_min_race_oldest, task_t, run_list);
+	  goto switch_tasks;
+	 
 	  
 	  
 	 
