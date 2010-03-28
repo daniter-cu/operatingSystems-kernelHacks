@@ -50,6 +50,10 @@
 #include <asm/unistd.h>
 
 /* OS HW4 */
+#define COLOR_ERR "%s: %s: %s\n", "OSHW4",
+
+/* printk(COLOR_ERR "name()" "problem"); */
+
 /* Stores probabilities of color pairs.  Defaults to 0. */
 int colorProbs[5][5] =  { {0,0,0,0,0},
 		         {0,0,0,0,0},
@@ -586,12 +590,15 @@ static inline void sched_info_switch(task_t *prev, task_t *next)
 asmlinkage long sys_getprob(int color1, int color2)
 {
     int prob;
-    prob = colorProbs[color1][color2];
-    if (!IS_VALID_PROB(prob)) /* this shouldn't happen, right? */
-	return -1;
-    else
-    	return prob;
-};
+
+    if(IS_VALID_COLOR(color1)==0 || IS_VALID_COLOR(color2)==0) {
+	return -EINVAL;
+    }
+    else {
+      prob = colorProbs[color1][color2];     
+    }
+    return prob;
+}
 
 /* 
  * Using both sides of the matrix.
@@ -600,14 +607,16 @@ asmlinkage long sys_getprob(int color1, int color2)
 asmlinkage long sys_setprob(int color1, int color2, int prob)
 {
     /* check params */
-    if(!IS_VALID_COLOR(color1) || !IS_VALID_COLOR(color2) || !IS_VALID_PROB(prob)) {
+  
+    if(IS_VALID_COLOR(color1)==0 || IS_VALID_COLOR(color2)==0 || IS_VALID_PROB(prob)==0) {
+      printk("%s: %s:  %s\n", "OSHW4", "sys_setprob()", "invalid args");
 	return -EINVAL;
     }
     /* set both sides of matrix */
     colorProbs[color1][color2] = prob;
     colorProbs[color2][color1] = prob;
     return 0;
-};
+}
 
 asmlinkage long sys_getcolor(int pid)
 {
@@ -616,7 +625,7 @@ asmlinkage long sys_getcolor(int pid)
     if (!task)
 	return -EINVAL;
     return task->color;
-};
+}
 
 asmlinkage long sys_setcolor(int pid, int color)
 {
@@ -633,12 +642,12 @@ asmlinkage long sys_setcolor(int pid, int color)
   
     tsk = find_task_by_pid(pid);
     if(tsk==NULL) {
-	return -EINVAL;
+	return -ESRCH;
     }
     /* set color */
     tsk->color = color;
     return 0;
-};
+}
 
 void overall_race_prob(void) {
   runqueue_t *rq; /* runqueue of current cpu */
@@ -2949,6 +2958,7 @@ go_idle:
 	queue = array->queue + idx;
 
 	if(idx==RAS_PRIO) {
+	  printk(COLOR_ERR "schedule()", "scheduling RAS");
 	  int min_race_prob = PROB_MAX, iter = 0, color_min_race_oldest = -1;
 	  task_t *task_to_check;
 	  unsigned long long timestamp_to_compare = -1;
@@ -3610,11 +3620,13 @@ int sched_setscheduler(struct task_struct *p, int policy, struct sched_param *pa
 
 	rq = task_rq_lock(p, &flags);
 
+
 	if(policy == SCHED_RAS)
 	{
 	   	if(!IS_VALID_COLOR(p->color))
 		{
 			task_rq_unlock(rq, &flags);
+			printk("%s: %s\n", "OSHW4", "sched_setscheduler() invalid color");
 			return -EINVAL;
 		}
 	    
