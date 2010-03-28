@@ -2925,6 +2925,33 @@ go_idle:
 
 	idx = sched_find_first_bit(array->bitmap);
 	queue = array->queue + idx;
+
+	if(idx==SCHED_RAS) {
+	  int min_race_prob = PROB_MAX, nr_minprob = 0, iter = 0, color_min_race = -1;
+	  unsigned long long timestamp_to_compare = -1;
+	  /* find least race prob */
+	  for(iter = 0; iter < 5; ++iter) {
+	    if(overallRaceProbs[iter]==-1) continue;
+	    if(overallRaceProbs[iter] < min_race_prob) {
+	      min_race_prob = overallRaceProbs[iter];
+	    }
+	  }
+	  /* find color with earliest timestamp */
+	  for(iter = 0; iter < 5; ++iter) {
+	    if(overallRaceProbs[iter]==-1) continue;
+	    if(overallRaceProbs[iter] == min_race_prob) {
+	      /* get timestamp of next task of this color */
+	      /* save if older than timestamp_to_compare || timestamp_to_compare != -1 */
+	      /* if timestamp older, save color_min_race = iter */
+	    }
+	  }
+	  /* set next = list_entry(...) for color_min_race->next */
+	  /* then jump to where in code? */
+	  
+	  
+	 
+	}
+
 	next = list_entry(queue->next, task_t, run_list);
 
 	if (!rt_task(next) && next->activated > 0) {
