@@ -607,8 +607,11 @@ asmlinkage long sys_getprob(int color1, int color2)
 asmlinkage long sys_setprob(int color1, int color2, int prob)
 {
     /* check params */
-  
-    if(IS_VALID_COLOR(color1)==0 || IS_VALID_COLOR(color2)==0 || IS_VALID_PROB(prob)==0) {
+     if(sys_getuid()!=0) {
+	return -EPERM;
+    } 
+ 
+     if(IS_VALID_COLOR(color1)==0 || IS_VALID_COLOR(color2)==0 || IS_VALID_PROB(prob)==0) {
       printk("%s: %s:  %s\n", "OSHW4", "sys_setprob()", "invalid args");
 	return -EINVAL;
     }
