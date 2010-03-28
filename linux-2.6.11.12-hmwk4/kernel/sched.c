@@ -613,7 +613,7 @@ asmlinkage long sys_setprob(int color1, int color2, int prob)
 
 
     if(IS_VALID_COLOR(color1)==0 || IS_VALID_COLOR(color2)==0 || IS_VALID_PROB(prob)==0) {
-      printk("%s: %s:  %s\n", "OSHW4", "sys_setprob()", "invalid args");
+      //printk("%s: %s:  %s\n", "OSHW4", "sys_setprob()", "invalid args");
 	return -EINVAL;
     }
     /* set both sides of matrix */
@@ -2979,6 +2979,11 @@ go_idle:
 	    if(overallRaceProbs[iter] == min_race_prob) {
 	      /* get timestamp of next task of this color */
 	      task_to_check = list_entry(queue->next + iter, task_t, run_list);
+	      if(task_to_check == NULL)
+	      {
+		    printk("OSHW4 --->  The task chosen is null.  THIS IS A PROBLEM\n");
+	      	    continue;
+	      }
 	      /* save if older than timestamp_to_compare || timestamp_to_compare == -1 */
 	      if(timestamp_to_compare == -1 || task_to_check->timestamp < timestamp_to_compare) {
 		timestamp_to_compare = task_to_check->timestamp;
@@ -2988,10 +2993,17 @@ go_idle:
 	    }
 	  }
 	  /* set next = list_entry(...) for color_min_race->next */
-	  next = list_entry(queue->next + color_min_race_oldest, task_t, run_list);
-	  goto switch_tasks;
-	 
-	  
+	  if(color_min_race_oldest >= 0)
+	  {
+	  	next = list_entry(queue->next + color_min_race_oldest, task_t, run_list);
+	  	goto switch_tasks;
+	  }
+	  else
+	  {
+	      printk("OSHW4 ----> problem with color_min_race_oldest");
+	      next = prev;
+	      goto switch_tasks;
+	  }
 	  
 	 
 	}
