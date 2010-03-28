@@ -68,7 +68,7 @@ extern struct group_info init_groups;
  */
 #define INIT_TASK(tsk)	                                                \
 {									\
-        .color          = -1,                                           \
+        .color          = 0,                                            \
         .state		= 0,						\
 	.thread_info	= &init_thread_info,				\
 	.usage		= ATOMIC_INIT(2),				\
