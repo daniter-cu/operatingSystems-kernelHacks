@@ -607,7 +607,11 @@ asmlinkage long sys_getprob(int color1, int color2)
 asmlinkage long sys_setprob(int color1, int color2, int prob)
 {
     /* check params */
-  
+    if(sys_getuid()!=0) {
+	return -EPERM;
+    }
+
+
     if(IS_VALID_COLOR(color1)==0 || IS_VALID_COLOR(color2)==0 || IS_VALID_PROB(prob)==0) {
       printk("%s: %s:  %s\n", "OSHW4", "sys_setprob()", "invalid args");
 	return -EINVAL;
@@ -2958,7 +2962,7 @@ go_idle:
 	queue = array->queue + idx;
 
 	if(idx==RAS_PRIO) {
-	  printk(COLOR_ERR "schedule()", "scheduling RAS");
+	  //printk(COLOR_ERR "schedule()", "scheduling RAS");
 	  int min_race_prob = PROB_MAX, iter = 0, color_min_race_oldest = -1;
 	  task_t *task_to_check;
 	  unsigned long long timestamp_to_compare = -1;
@@ -3639,7 +3643,7 @@ int sched_setscheduler(struct task_struct *p, int policy, struct sched_param *pa
 		p->rt_priority = RAS_PRIO;
 		
 		if(array)
-		       enqueue_task(p, array);
+			__activate_task(p, rq);
 
 		task_rq_unlock(rq, &flags);
 		return 0;
