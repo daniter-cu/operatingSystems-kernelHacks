@@ -2599,6 +2599,27 @@ void scheduler_tick(void)
 		}
 		goto out_unlock;
 	}
+	if(p->policy == SCHED_RAS) {
+	  /* if timeslice is over */
+	  if(!--p->time_slice) {
+	    dequeue_task(p, rq->active);
+	    p->time_slice = task_timeslice(p);
+	    set_tsk_need_resched(p);
+	    /* don't change priority*/
+	    /* don't change timeslice */
+	    p->first_time_slice = 0;
+	    
+	    /* what does this do? */
+	    /* if(!rq->expired_timestamp) { */
+	    /*   rq->expired_timestamp = jiffies; */
+	    /* } */
+
+	    enqueue_task(p, rq->active);
+	    
+	    /* do more stuff */
+	  }
+	}
+	else {
 	if (!--p->time_slice) {
 		dequeue_task(p, rq->active);
 		set_tsk_need_resched(p);
@@ -2639,6 +2660,7 @@ void scheduler_tick(void)
 			requeue_task(p, rq->active);
 			set_tsk_need_resched(p);
 		}
+	}
 	}
 out_unlock:
 	spin_unlock(&rq->lock);
