@@ -859,6 +859,7 @@ static task_t *copy_process(unsigned long clone_flags,
 
 	INIT_LIST_HEAD(&p->children);
 	INIT_LIST_HEAD(&p->sibling);
+	/* INIT_LIST_HEAD( */
 	p->vfork_done = NULL;
 	spin_lock_init(&p->alloc_lock);
 	spin_lock_init(&p->proc_lock);

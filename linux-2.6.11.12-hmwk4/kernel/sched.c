@@ -730,7 +730,8 @@ static void enqueue_task(struct task_struct *p, prio_array_t *array)
       list_add_tail(&p->run_list, ((array->queue[RAS_PRIO].next) + p->color));
       /* update the time stamp for round robin between tasks of
        * equal probability */
-      now = sched_clock();
+      /* now = sched_clock(); */
+      now = jiffies;
       p->timestamp = now;
       overall_race_prob();
     }
@@ -748,6 +749,7 @@ static void enqueue_task(struct task_struct *p, prio_array_t *array)
  */
 static void requeue_task(struct task_struct *p, prio_array_t *array)
 {
+  if(p->policy == SCHED_RAS) panic("requeue_task called on RAS task!");
 	list_move_tail(&p->run_list, array->queue + p->prio);
 }
 
@@ -1400,7 +1402,12 @@ void fastcall wake_up_new_task(task_t * p, unsigned long clone_flags)
 				__activate_task(p, rq);
 			else {
 				p->prio = current->prio;
-				list_add_tail(&p->run_list, &current->run_list);
+				if(p->policy == SCHED_RAS) {
+				  list_add_tail(&p->run_list, ((this_rq()->active->queue[RAS_PRIO].next) + p->color));
+				}
+				else {
+				  list_add_tail(&p->run_list, &current->run_list);
+				}
 				p->array = current->array;
 				p->array->nr_active++;
 				rq->nr_running++;
@@ -2624,7 +2631,7 @@ void scheduler_tick(void)
 	  if(!--p->time_slice) {
 	    dequeue_task(p, rq->active);
 	    p->time_slice = task_timeslice(p);
-	    /* set_tsk_need_resched(p); */
+	    set_tsk_need_resched(p);
 	    /* don't change priority*/
 	    p->first_time_slice = 0;
 	    
@@ -5294,6 +5301,7 @@ void __init sched_init(void)
 
 		rq->active->queue[RAS_PRIO].next = rq->active->colorqueue;
 		rq->expired->queue[RAS_PRIO].next = rq->expired->colorqueue;
+		/* what about previous? */
 	}
 
 	/*
