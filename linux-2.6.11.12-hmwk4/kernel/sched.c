@@ -69,7 +69,7 @@ int colorProbs[5][5] =  { {0,0,0,0,0},
 #define IS_VALID_PROB(prob) (((prob) >= PROB_MIN) && ((prob) <= PROB_MAX))
 
 /* global array for overall race prob */
-int overallRaceProbs[5] = {-1,-1,-1,-1,-1};
+int overallRaceProbs[COLOR_MAX + 1] = {-1,-1,-1,-1,-1};
 
 
 /*
@@ -2633,47 +2633,47 @@ void scheduler_tick(void)
 	  }
 	}
 	else {
-	if (!--p->time_slice) {
-		dequeue_task(p, rq->active);
-		set_tsk_need_resched(p);
-		p->prio = effective_prio(p);
-		p->time_slice = task_timeslice(p);
-		p->first_time_slice = 0;
-
-		if (!rq->expired_timestamp)
-			rq->expired_timestamp = jiffies;
-		if (!TASK_INTERACTIVE(p) || EXPIRED_STARVING(rq)) {
-			enqueue_task(p, rq->expired);
-			if (p->static_prio < rq->best_expired_prio)
-				rq->best_expired_prio = p->static_prio;
-		} else
-			enqueue_task(p, rq->active);
-	} else {
-		/*
-		 * Prevent a too long timeslice allowing a task to monopolize
-		 * the CPU. We do this by splitting up the timeslice into
-		 * smaller pieces.
-		 *
-		 * Note: this does not mean the task's timeslices expire or
-		 * get lost in any way, they just might be preempted by
-		 * another task of equal priority. (one with higher
-		 * priority would have preempted this task already.) We
-		 * requeue this task to the end of the list on this priority
-		 * level, which is in essence a round-robin of tasks with
-		 * equal priority.
-		 *
-		 * This only applies to tasks in the interactive
-		 * delta range with at least TIMESLICE_GRANULARITY to requeue.
-		 */
-		if (TASK_INTERACTIVE(p) && !((task_timeslice(p) -
-			p->time_slice) % TIMESLICE_GRANULARITY(p)) &&
-			(p->time_slice >= TIMESLICE_GRANULARITY(p)) &&
-			(p->array == rq->active)) {
-
-			requeue_task(p, rq->active);
-			set_tsk_need_resched(p);
-		}
-	}
+	  if (!--p->time_slice) {
+	    dequeue_task(p, rq->active);
+	    set_tsk_need_resched(p);
+	    p->prio = effective_prio(p);
+	    p->time_slice = task_timeslice(p);
+	    p->first_time_slice = 0;
+	    
+	    if (!rq->expired_timestamp)
+	      rq->expired_timestamp = jiffies;
+	    if (!TASK_INTERACTIVE(p) || EXPIRED_STARVING(rq)) {
+	      enqueue_task(p, rq->expired);
+	      if (p->static_prio < rq->best_expired_prio)
+		rq->best_expired_prio = p->static_prio;
+	    } else
+	      enqueue_task(p, rq->active);
+	  } else {
+	    /*
+	     * Prevent a too long timeslice allowing a task to monopolize
+	     * the CPU. We do this by splitting up the timeslice into
+	     * smaller pieces.
+	     *
+	     * Note: this does not mean the task's timeslices expire or
+	     * get lost in any way, they just might be preempted by
+	     * another task of equal priority. (one with higher
+	     * priority would have preempted this task already.) We
+	     * requeue this task to the end of the list on this priority
+	     * level, which is in essence a round-robin of tasks with
+	     * equal priority.
+	     *
+	     * This only applies to tasks in the interactive
+	     * delta range with at least TIMESLICE_GRANULARITY to requeue.
+	     */
+	    if (TASK_INTERACTIVE(p) && !((task_timeslice(p) -
+					  p->time_slice) % TIMESLICE_GRANULARITY(p)) &&
+		(p->time_slice >= TIMESLICE_GRANULARITY(p)) &&
+		(p->array == rq->active)) {
+	      
+	      requeue_task(p, rq->active);
+	      set_tsk_need_resched(p);
+	    }
+	  }
 	}
 out_unlock:
 	spin_unlock(&rq->lock);
@@ -2964,46 +2964,55 @@ go_idle:
 	if(idx==RAS_PRIO) {
 	  //printk(COLOR_ERR "schedule()", "scheduling RAS");
 	  int min_race_prob = PROB_MAX, iter = 0, color_min_race_oldest = -1;
-	  task_t *task_to_check;
+	  task_t *task_to_check = NULL;
 	  unsigned long long timestamp_to_compare = -1;
-	  /* find least race prob */
-	  for(iter = 0; iter < 5; ++iter) {
-	    if(overallRaceProbs[iter]==-1) continue;
-	    if(overallRaceProbs[iter] < min_race_prob) {
-	      min_race_prob = overallRaceProbs[iter];
-	    }
+	  int overallRaceProbs_local[COLOR_MAX + 1] = {-1, -1, -1, -1, -1};
+	  /* copy global array to local array */
+	  for(iter = 0; iter < COLOR_MAX + 1; ++iter) {
+	    overallRaceProbs_local[iter] = overallRaceProbs[iter];
 	  }
-	  /* find color with earliest timestamp */
-	  for(iter = 0; iter < 5; ++iter) {
-	    if(overallRaceProbs[iter]==-1) continue;
-	    if(overallRaceProbs[iter] == min_race_prob) {
-	      /* get timestamp of next task of this color */
-	      task_to_check = list_entry(queue->next + iter, task_t, run_list);
-	      if(task_to_check == NULL)
-	      {
-		    printk("OSHW4 --->  The task chosen is null.  THIS IS A PROBLEM\n");
-	      	    continue;
-	      }
-	      /* save if older than timestamp_to_compare || timestamp_to_compare == -1 */
-	      if(timestamp_to_compare == -1 || task_to_check->timestamp < timestamp_to_compare) {
-		timestamp_to_compare = task_to_check->timestamp;
-		/* if timestamp older, save color_min_race = iter */
-		color_min_race_oldest = iter;
+	  do{
+	    min_race_prob = PROB_MAX;
+	    timestamp_to_compare = -1;
+	    /* find least race prob */
+	    for(iter = 0; iter < COLOR_MAX + 1; ++iter) {
+	      if(overallRaceProbs_local[iter]==-1) continue;
+	      if(overallRaceProbs_local[iter] < min_race_prob) {
+		min_race_prob = overallRaceProbs_local[iter];
 	      }
 	    }
-	  }
+	    /* find color with earliest timestamp */
+	    for(iter = 0; iter < COLOR_MAX + 1; ++iter) {
+	      if(overallRaceProbs_local[iter]==-1) continue;
+	      if(overallRaceProbs_local[iter] == min_race_prob) {
+		/* get timestamp of next task of this color */
+		task_to_check = list_entry(queue->next + iter, task_t, run_list);
+		if(task_to_check == NULL) {
+		  overallRaceProbs_local[iter] = -1;
+		  break;
+		}
+		/* save if older than timestamp_to_compare || timestamp_to_compare == -1 */
+		if(timestamp_to_compare == -1 || task_to_check->timestamp < timestamp_to_compare) {
+		  timestamp_to_compare = task_to_check->timestamp;
+		  /* if timestamp older, save color_min_race = iter */
+		  color_min_race_oldest = iter;
+		}
+	      }
+	    }
+	}while(!task_to_check);
+
 	  /* set next = list_entry(...) for color_min_race->next */
-	  if(color_min_race_oldest >= 0)
-	  {
-	  	next = list_entry(queue->next + color_min_race_oldest, task_t, run_list);
-	  	goto switch_tasks;
-	  }
-	  else
-	  {
-	      printk("OSHW4 ----> problem with color_min_race_oldest");
-	      next = prev;
-	      goto switch_tasks;
-	  }
+	  /* if(color_min_race_oldest >= 0) */
+	  /* { */
+	  next = list_entry(queue->next + color_min_race_oldest, task_t, run_list);
+	  goto switch_tasks;
+	  /* } */
+	  /* else */
+	  /* { */
+	  /*     printk("OSHW4 ----> problem with color_min_race_oldest"); */
+	  /*     next = prev; */
+	  /*     goto switch_tasks; */
+	  /* } */
 	  
 	 
 	}
@@ -3650,12 +3659,20 @@ int sched_setscheduler(struct task_struct *p, int policy, struct sched_param *pa
 	    	if (array)
 	              deactivate_task(p, rq);
 		
-		p->policy = policy;
+		oldprio = p->prio;
+		p->policy = policy;		
 		p->prio = RAS_PRIO;
 		p->rt_priority = RAS_PRIO;
 		
-		if(array)
-			__activate_task(p, rq);
+		if(array) {
+		  __activate_task(p, rq);
+		  /* preemption */
+		  if (task_running(rq, p)) {
+		    if (p->prio > oldprio)
+			 resched_task(rq->curr);
+                } else if (TASK_PREEMPTS_CURR(p, rq))
+		    resched_task(rq->curr);
+		}
 
 		task_rq_unlock(rq, &flags);
 		return 0;
@@ -3984,7 +4001,7 @@ asmlinkage long sys_sched_yield(void)
 	 * (special rule: RT tasks will just roundrobin in the active
 	 *  array.)
 	 */
-	if (rt_task(current))
+	if (rt_task(current) || current->policy==SCHED_RAS)
 		target = rq->active;
 
 	if (current->array->nr_active == 1) {
@@ -4001,7 +4018,13 @@ asmlinkage long sys_sched_yield(void)
 		/*
 		 * requeue_task is cheaper so perform that if possible.
 		 */
+	  if(current->policy==SCHED_RAS) {
+	    dequeue_task(current, array);
+	    enqueue_task(current, target);
+	  }
+	  else {
 		requeue_task(current, array);
+	  }
 
 	/*
 	 * Since we are going to call schedule() anyway, there's
