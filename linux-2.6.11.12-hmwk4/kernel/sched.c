@@ -706,7 +706,7 @@ static void dequeue_task(struct task_struct *p, prio_array_t *array)
 	    for (i = 0; i < COLOR_MAX+1; i++)
 	    {
 		/* if all 5 subarrays are not empty, set the flag to 1 */
-		if (!list_empty((array->queue[p->prio].next) + i))
+		if (!list_empty(&array->colorqueue[i]))
 		    colors_full = 1;
 	    }
 	    /* if all 5 subarrays are empty, clear the bit to 0 */
@@ -727,8 +727,9 @@ static void enqueue_task(struct task_struct *p, prio_array_t *array)
   /* add the task to the proper colored array based on its color */
   if (p->policy == SCHED_RAS)
     {
-      list_add_tail(&p->run_list, ((array->queue[RAS_PRIO].next) + p->color));
-      /* update the time stamp for round robin between tasks of
+      //list_add_tail(&p->run_list, ((array->queue[RAS_PRIO].next) + p->color));
+      list_add_tail(&p->run_list, &array->colorqueue[p->color]);
+	/* update the time stamp for round robin between tasks of
        * equal probability */
       /* now = sched_clock(); */
       now = jiffies;
@@ -1403,7 +1404,7 @@ void fastcall wake_up_new_task(task_t * p, unsigned long clone_flags)
 			else {
 				p->prio = current->prio;
 				if(p->policy == SCHED_RAS) {
-				  list_add_tail(&p->run_list, ((this_rq()->active->queue[RAS_PRIO].next) + p->color));
+				  list_add_tail(&p->run_list, &(this_rq()->active->colorqueue[p->color]));
 				}
 				else {
 				  list_add_tail(&p->run_list, &current->run_list);
@@ -2975,16 +2976,13 @@ go_idle:
 	queue = array->queue + idx;
 	
 	if(idx==RAS_PRIO) {
-	  printk(COLOR_ERR "schedule()", "scheduling RAS");
-	  int min_race_prob = PROB_MAX, iter = 0, color_min_race_oldest = -1;
-	  task_t *task_to_check;
-	  unsigned long long timestamp_to_compare = -1;
-	  /* find least race prob */
-	  for(iter = 0; iter < 5; ++iter) {
-	    if(overallRaceProbs[iter]==-1) continue;
-	    if(overallRaceProbs[iter] < min_race_prob) {
-	      min_race_prob = overallRaceProbs[iter];
-	    }
+	    int iteriter;
+	    next = NULL;
+	    for(iteriter = 0; iteriter < 5; ++iteriter) {
+		if(!list_empty(&array->colorqueue[iteriter])) {
+		    next = list_entry(&array->colorqueue[iteriter], task_t, run_list);
+		    break;
+		}
 	  }
 	  if(next==NULL) {
 	    panic("simple case scheduler problem.\n");
@@ -5294,13 +5292,15 @@ void __init sched_init(void)
 
 		for (iter=0; iter < 5; iter++)
 		{
-		    INIT_LIST_HEAD(rq->active->colorqueue + iter);
-		    INIT_LIST_HEAD(rq->expired->colorqueue + iter);
+		    struct list_head *temp = rq->active->colorqueue;
+		    struct list_head *temp2 = rq->expired->colorqueue;
+		    INIT_LIST_HEAD(temp +iter);
+		    INIT_LIST_HEAD(temp2 +iter);
 		}
 
 
-		rq->active->queue[RAS_PRIO].next = rq->active->colorqueue;
-		rq->expired->queue[RAS_PRIO].next = rq->expired->colorqueue;
+		//rq->active->queue[RAS_PRIO].next = rq->active->colorqueue;
+		//rq->expired->queue[RAS_PRIO].next = rq->expired->colorqueue;
 		/* what about previous? */
 	}
 
