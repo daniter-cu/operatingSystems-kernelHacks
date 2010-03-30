@@ -753,13 +753,13 @@ static void enqueue_task(struct task_struct *p, prio_array_t *array)
  */
 static void requeue_task(struct task_struct *p, prio_array_t *array)
 {
-  if(p->policy == SCHED_RAS) panic("requeue_task called on RAS task!");
+  /* if(p->policy == SCHED_RAS) panic("requeue_task called on RAS task!"); */
 	list_move_tail(&p->run_list, array->queue + p->prio);
 }
 
 static inline void enqueue_task_head(struct task_struct *p, prio_array_t *array)
 {
-  if(p->policy==SCHED_RAS) panic("enqueue_task_head() called on RAS task!");
+  /* if(p->policy==SCHED_RAS) panic("enqueue_task_head() called on RAS task!"); */
 	list_add(&p->run_list, array->queue + p->prio);
 	__set_bit(p->prio, array->bitmap);
 	array->nr_active++;
@@ -2604,7 +2604,7 @@ void scheduler_tick(void)
 	if (p->array != rq->active) {
 	  if (p->policy == SCHED_RAS)
 	    {
-	      panic("OSHW4 - should never happen RAS_TASK on expired array");
+	      /* panic("OSHW4 - should never happen RAS_TASK on expired array"); */
 	    }
 		set_tsk_need_resched(p);
 		goto out;
@@ -2980,87 +2980,87 @@ go_idle:
 	idx = sched_find_first_bit(array->bitmap);
 	queue = array->queue + idx;
 	
-	if(idx==RAS_PRIO) {
-	  int iteriter;
-	  next = NULL;
-	  for(iteriter = 0; iteriter < 5; ++iteriter) {
-	    /* if(!list_empty(queue->next + iteriter)) { */
-	    if(!list_empty(& array->colorqueue[iteriter])) {
-	      /* next = list_entry(queue->next + iteriter, task_t, run_list); */
-	      next = list_entry(&array->colorqueue[iteriter].next, task_t, run_list);
-	      break;
-	    }
-	  }
-	  if(next==NULL) {
-	    panic("simple case scheduler problem.\n");
-	  }
-	  else {
-	    goto switch_tasks;
-	  }
-	}
 	/* if(idx==RAS_PRIO) { */
-	/*   //printk(COLOR_ERR "schedule()", "scheduling RAS"); */
-	/*   int min_race_prob = PROB_MAX, iter = 0, color_min_race_oldest = -1; */
-	/*   task_t *task_to_check = NULL; */
-	/*   unsigned long long timestamp_to_compare = -1; */
-	/*   int overallRaceProbs_local[COLOR_MAX + 1] = {-1, -1, -1, -1, -1}; */
-	/*   /\* copy global array to local array *\/ */
-	/*   for(iter = 0; iter < COLOR_MAX + 1; ++iter) { */
-	/*     overallRaceProbs_local[iter] = overallRaceProbs[iter]; */
+	/*   int iteriter; */
+	/*   next = NULL; */
+	/*   for(iteriter = 0; iteriter < 5; ++iteriter) { */
+	/*     /\* if(!list_empty(queue->next + iteriter)) { *\/ */
+	/*     if(!list_empty(& array->colorqueue[iteriter])) { */
+	/*       /\* next = list_entry(queue->next + iteriter, task_t, run_list); *\/ */
+	/*       next = list_entry(&array->colorqueue[iteriter].next, task_t, run_list); */
+	/*       break; */
+	/*     } */
 	/*   } */
-	/*   int readytopanic = 0; */
-	/*   do{ */
-	/*     min_race_prob = PROB_MAX; */
-	/*     timestamp_to_compare = -1; */
-	/*     /\* find least race prob *\/ */
-	/*     for(iter = 0; iter < COLOR_MAX + 1; ++iter) { */
-	/*       if(overallRaceProbs_local[iter]==-1) continue; */
-	/*       if(overallRaceProbs_local[iter] < min_race_prob) { */
-	/* 	min_race_prob = overallRaceProbs_local[iter]; */
-	/*       } */
-	/*     } */
-	/*     /\* find color with earliest timestamp *\/ */
-	/*     for(iter = 0; iter < COLOR_MAX + 1; ++iter) { */
-	/*       if(overallRaceProbs_local[iter]==-1) continue; */
-	/*       if(overallRaceProbs_local[iter] == min_race_prob) { */
-	/* 	/\* get timestamp of next task of this color *\/ */
+	/*   if(next==NULL) { */
+	/*     panic("simple case scheduler problem.\n"); */
+	/*   } */
+	/*   else { */
+	/*     goto switch_tasks; */
+	/*   } */
+	/* } */
+	if(idx==RAS_PRIO) {
+	  //printk(COLOR_ERR "schedule()", "scheduling RAS");
+	  int min_race_prob = PROB_MAX, iter = 0, color_min_race_oldest = -1;
+	  task_t *task_to_check = NULL;
+	  unsigned long long timestamp_to_compare = -1;
+	  int overallRaceProbs_local[COLOR_MAX + 1] = {-1, -1, -1, -1, -1};
+	  /* copy global array to local array */
+	  for(iter = 0; iter < COLOR_MAX + 1; ++iter) {
+	    overallRaceProbs_local[iter] = overallRaceProbs[iter];
+	  }
+	  int readytopanic = 0;
+	  do{
+	    min_race_prob = PROB_MAX;
+	    timestamp_to_compare = -1;
+	    /* find least race prob */
+	    for(iter = 0; iter < COLOR_MAX + 1; ++iter) {
+	      if(overallRaceProbs_local[iter]==-1) continue;
+	      if(overallRaceProbs_local[iter] < min_race_prob) {
+		min_race_prob = overallRaceProbs_local[iter];
+	      }
+	    }
+	    /* find color with earliest timestamp */
+	    for(iter = 0; iter < COLOR_MAX + 1; ++iter) {
+	      if(overallRaceProbs_local[iter]==-1) continue;
+	      if(overallRaceProbs_local[iter] == min_race_prob) {
+		/* get timestamp of next task of this color */
 		
-	/* 	task_to_check = list_entry(&array->colorqueue[iter], task_t, run_list); */
-	/* 	if(task_to_check == NULL) { */
-	/* 	  overallRaceProbs_local[iter] = -1; */
-	/* 	  break; */
-	/* 	} */
-	/* 	/\* save if older than timestamp_to_compare || timestamp_to_compare == -1 *\/ */
-	/* 	if(timestamp_to_compare == -1 || task_to_check->timestamp < timestamp_to_compare) { */
-	/* 	  timestamp_to_compare = task_to_check->timestamp; */
-	/* 	  /\* if timestamp older, save color_min_race = iter *\/ */
-	/* 	  color_min_race_oldest = iter; */
-	/* 	} */
-	/*       } */
-	/*     } */
-	/*     readytopanic++; */
-	/*     if(readytopanic>=10) { */
-	/*       panic("infinite loop in RAS schedule\n"); */
-	/*     } */
-	/*   }while(!task_to_check); */
+		task_to_check = list_entry(&array->colorqueue[iter], task_t, run_list);
+		if(task_to_check == NULL) {
+		  overallRaceProbs_local[iter] = -1;
+		  break;
+		}
+		/* save if older than timestamp_to_compare || timestamp_to_compare == -1 */
+		if(timestamp_to_compare == -1 || task_to_check->timestamp < timestamp_to_compare) {
+		  timestamp_to_compare = task_to_check->timestamp;
+		  /* if timestamp older, save color_min_race = iter */
+		  color_min_race_oldest = iter;
+		}
+	      }
+	    }
+	    readytopanic++;
+	    if(readytopanic>=10) {
+	      /* panic("infinite loop in RAS schedule\n"); */
+	    }
+	  }while(!task_to_check);
 	  
-	/*   /\* set next = list_entry(...) for color_min_race->next *\/ */
-	/*   /\* if(color_min_race_oldest >= 0) *\/ */
-	/*   /\* { *\/ */
+	  /* set next = list_entry(...) for color_min_race->next */
+	  /* if(color_min_race_oldest >= 0) */
+	  /* { */
 	  
-	/*   next = list_entry(&array->colorqueue[color_min_race_oldest], task_t, run_list); */
-	/*   if(next==NULL) panic("next==null in RAS schedule()"); */
-	/*   goto switch_tasks; */
-	/*   /\* } *\/ */
-	/*   /\* else *\/ */
-	/*   /\* { *\/ */
-	/*   /\*     printk("OSHW4 ----> problem with color_min_race_oldest"); *\/ */
-	/*   /\*     next = prev; *\/ */
-	/*   /\*     goto switch_tasks; *\/ */
-	/*   /\* } *\/ */
+	  next = list_entry(&array->colorqueue[color_min_race_oldest], task_t, run_list);
+	  /* if(next==NULL) panic("next==null in RAS schedule()"); */
+	  goto switch_tasks;
+	  /* } */
+	  /* else */
+	  /* { */
+	  /*     printk("OSHW4 ----> problem with color_min_race_oldest"); */
+	  /*     next = prev; */
+	  /*     goto switch_tasks; */
+	  /* } */
 	  
 	 
-	/* } */
+	}
 
 	next = list_entry(queue->next, task_t, run_list);
 
