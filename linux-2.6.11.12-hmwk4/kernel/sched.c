@@ -657,36 +657,37 @@ asmlinkage long sys_setcolor(int pid, int color)
 }
 
 void overall_race_prob(void) {
-  runqueue_t *rq; /* runqueue of current cpu */
-  int color1, color2, j, nr_tasks_cur_color1;
-  struct list_head *front_task;
-  struct list_head *cur_task;
-  for(color1 = COLOR_MIN; color1 <= COLOR_MAX; ++color1) {
-    nr_tasks_cur_color1 = 0;
-    /* foreach cpu */
-    for(j = 0; j < NR_CPUS; ++j) {
-      rq = cpu_rq(j);
-      /* if no tasks of this color, continue to next CPU */
-      if(list_empty(rq->active->queue[RAS_PRIO].next + color1)) {
-	continue;
-      }
-      else {
-	/* save the front task to check cycle */
-	front_task = rq->active->queue[RAS_PRIO].next + color1;
-	cur_task = front_task;
-	do {
-	  /* count the number of tasks of this color */
-	  nr_tasks_cur_color1++;
-	  cur_task = cur_task->next;
-	}while(cur_task != front_task);	
-      }    
-    }
-    /* computer probability of color1 vs. all other colors */
-    for(color2 = color1; color2 <= COLOR_MAX; ++color2) {
-      /* multiplying by nr_tasks_cur_color1 is same as adding for all colors */
-      overallRaceProbs[color1] = sys_getprob(color1, color2) * nr_tasks_cur_color1;
-    }    
-  }
+  /* runqueue_t *rq; /\* runqueue of current cpu *\/ */
+  /* int color1, color2, j, nr_tasks_cur_color1; */
+  /* struct list_head *front_task; */
+  /* struct list_head *cur_task; */
+  /* for(color1 = COLOR_MIN; color1 <= COLOR_MAX; ++color1) { */
+  /*   nr_tasks_cur_color1 = 0; */
+  /*   /\* foreach cpu *\/ */
+  /*   for(j = 0; j < NR_CPUS; ++j) { */
+  /*     rq = cpu_rq(j); */
+  /*     /\* if no tasks of this color, continue to next CPU *\/ */
+  /*     /\* if(list_empty(rq->active->queue[RAS_PRIO].next + color1)) { *\/ */
+  /*     if(list_empty(&rq->active->colorqueue[color1])) { */
+  /* 	continue; */
+  /*     } */
+  /*     else { */
+  /* 	/\* save the front task to check cycle *\/ */
+  /* 	front_task = &rq->active->colorqueue[color1];/\* rq->active->queue[RAS_PRIO].next + color1; *\/ */
+  /* 	cur_task = front_task; */
+  /* 	do { */
+  /* 	  /\* count the number of tasks of this color *\/ */
+  /* 	  nr_tasks_cur_color1++; */
+  /* 	  cur_task = cur_task->next; */
+  /* 	}while(cur_task != front_task); */
+  /*     } */
+  /*   } */
+  /*   /\* computer probability of color1 vs. all other colors *\/ */
+  /*   for(color2 = color1; color2 <= COLOR_MAX; ++color2) { */
+  /*     /\* multiplying by nr_tasks_cur_color1 is same as adding for all colors *\/ */
+  /*     overallRaceProbs[color1] = sys_getprob(color1, color2) * nr_tasks_cur_color1; */
+  /*   } */
+  /* } */
 }
 
 
@@ -707,7 +708,8 @@ static void dequeue_task(struct task_struct *p, prio_array_t *array)
 	    for (i = 0; i < COLOR_MAX+1; i++)
 	    {
 		/* if all 5 subarrays are not empty, set the flag to 1 */
-		if (!list_empty((array->queue[p->prio].next) + i))
+		/* if (!list_empty((array->queue[p->prio].next) + i)) */
+	      if(!list_empty(&array->colorqueue[i]));
 		    colors_full = 1;
 	    }
 	    /* if all 5 subarrays are empty, clear the bit to 0 */
@@ -728,7 +730,8 @@ static void enqueue_task(struct task_struct *p, prio_array_t *array)
   /* add the task to the proper colored array based on its color */
   if (p->policy == SCHED_RAS)
     {
-      list_add_tail(&p->run_list, ((array->queue[RAS_PRIO].next) + p->color));
+      /* list_add_tail(&p->run_list, ((array->queue[RAS_PRIO].next) + p->color)); */
+      list_add_tail(&p->run_list, &array->colorqueue[p->color]);
       /* update the time stamp for round robin between tasks of
        * equal probability */
       /* now = sched_clock(); */
@@ -756,6 +759,7 @@ static void requeue_task(struct task_struct *p, prio_array_t *array)
 
 static inline void enqueue_task_head(struct task_struct *p, prio_array_t *array)
 {
+  if(p->policy==SCHED_RAS) panic("enqueue_task_head() called on RAS task!");
 	list_add(&p->run_list, array->queue + p->prio);
 	__set_bit(p->prio, array->bitmap);
 	array->nr_active++;
@@ -1404,7 +1408,8 @@ void fastcall wake_up_new_task(task_t * p, unsigned long clone_flags)
 			else {
 				p->prio = current->prio;
 				if(p->policy == SCHED_RAS) {
-				  list_add_tail(&p->run_list, ((this_rq()->active->queue[RAS_PRIO].next) + p->color));
+				  /* list_add_tail(&p->run_list, ((this_rq()->active->queue[RAS_PRIO].next) + p->color)); */
+				  list_add_tail(&p->run_list, & this_rq()->active->colorqueue[p->color]);
 				}
 				else {
 				  list_add_tail(&p->run_list, &current->run_list);
@@ -2979,13 +2984,18 @@ go_idle:
 	  int iteriter;
 	  next = NULL;
 	  for(iteriter = 0; iteriter < 5; ++iteriter) {
-	    if(!list_empty(queue->next + iteriter)) {
-	      next = list_entry(queue->next + iteriter, task_t, run_list);
+	    /* if(!list_empty(queue->next + iteriter)) { */
+	    if(!list_empty(& array->colorqueue[iteriter])) {
+	      /* next = list_entry(queue->next + iteriter, task_t, run_list); */
+	      next = list_entry(&array->colorqueue[iteriter].next, task_t, run_list);
 	      break;
 	    }
 	  }
 	  if(next==NULL) {
 	    panic("simple case scheduler problem.\n");
+	  }
+	  else {
+	    goto switch_tasks;
 	  }
 	}
 	/* if(idx==RAS_PRIO) { */
@@ -3014,7 +3024,8 @@ go_idle:
 	/*       if(overallRaceProbs_local[iter]==-1) continue; */
 	/*       if(overallRaceProbs_local[iter] == min_race_prob) { */
 	/* 	/\* get timestamp of next task of this color *\/ */
-	/* 	task_to_check = list_entry(queue->next + iter, task_t, run_list); */
+		
+	/* 	task_to_check = list_entry(&array->colorqueue[iter], task_t, run_list); */
 	/* 	if(task_to_check == NULL) { */
 	/* 	  overallRaceProbs_local[iter] = -1; */
 	/* 	  break; */
@@ -3031,20 +3042,22 @@ go_idle:
 	/*     if(readytopanic>=10) { */
 	/*       panic("infinite loop in RAS schedule\n"); */
 	/*     } */
-	/* }while(!task_to_check); */
-
-	  /* /\* set next = list_entry(...) for color_min_race->next *\/ */
-	  /* /\* if(color_min_race_oldest >= 0) *\/ */
-	  /* /\* { *\/ */
-	  /* next = list_entry(queue->next + color_min_race_oldest, task_t, run_list); */
-	  /* goto switch_tasks; */
-	  /* /\* } *\/ */
-	  /* /\* else *\/ */
-	  /* /\* { *\/ */
-	  /* /\*     printk("OSHW4 ----> problem with color_min_race_oldest"); *\/ */
-	  /* /\*     next = prev; *\/ */
-	  /* /\*     goto switch_tasks; *\/ */
-	  /* /\* } *\/ */
+	/*   }while(!task_to_check); */
+	  
+	/*   /\* set next = list_entry(...) for color_min_race->next *\/ */
+	/*   /\* if(color_min_race_oldest >= 0) *\/ */
+	/*   /\* { *\/ */
+	  
+	/*   next = list_entry(&array->colorqueue[color_min_race_oldest], task_t, run_list); */
+	/*   if(next==NULL) panic("next==null in RAS schedule()"); */
+	/*   goto switch_tasks; */
+	/*   /\* } *\/ */
+	/*   /\* else *\/ */
+	/*   /\* { *\/ */
+	/*   /\*     printk("OSHW4 ----> problem with color_min_race_oldest"); *\/ */
+	/*   /\*     next = prev; *\/ */
+	/*   /\*     goto switch_tasks; *\/ */
+	/*   /\* } *\/ */
 	  
 	 
 	/* } */
@@ -5306,7 +5319,7 @@ void __init sched_init(void)
 
 		rq->active->queue[RAS_PRIO].next = rq->active->colorqueue;
 		rq->expired->queue[RAS_PRIO].next = rq->expired->colorqueue;
-		/* what about previous? */
+		/* what about previous? once initialized, always an empty list */
 	}
 
 	/*
