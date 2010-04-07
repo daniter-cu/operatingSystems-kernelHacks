@@ -30,7 +30,7 @@ void *runThread1(void *arg)
     int i;
     int j;
     struct foo *temp;
-    char *string = "Kerry is a poor programmer!";
+    char *string;
 
     temp = (struct foo*)malloc(sizeof(struct foo));
     if(temp == NULL)
@@ -46,6 +46,11 @@ void *runThread1(void *arg)
     y = 6;
     string = "hello, world!\n";
 
+    if (start_trace(pow(2,20), pow(2, 20) + pow(2, 24) ) == -1) { //dunno about this - set it to the entire region
+	fprintf(stderr, "%s: start_trace failed\n", strerror(errno));
+	return -1;
+    }
+
     for (i = 0; i < 50; i++)
     {
 	x = x + y;
@@ -58,6 +63,12 @@ void *runThread1(void *arg)
     	temp->str = string;
     }
 
+   if (stop_trace() < 0)
+    {
+	fprintf(stderr, "%s: start_trace failed\n", strerror(errno));
+	return -1;
+    }
+  
     if (get_trace(gettid(), wcounts) < 0)
 	fprintf(stderr, "%s: get_trace failed\n", strerror(errno));
 }
@@ -100,10 +111,6 @@ long test1a()
     int *wcounts = (int *) malloc(sizeof(int)*5000);
     wcounts[4999] = '\0';
 
-    if (start_trace(pow(2,20), pow(2, 20) + pow(2, 24) ) == -1) { //dunno about this - set it to the entire region
-	fprintf(stderr, "%s: start_trace failed\n", strerror(errno));
-	return -1;
-    }
     if (pthread_create(&t1, NULL, runThread1, (void*) wcounts) == -1) {
 	fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
     }
@@ -113,10 +120,7 @@ long test1a()
     if (pthread_create(&t3, NULL, runThread1, (void*) wcounts) == -1) {
 	fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
     }
-    if (start_trace(pow(2,20), pow(2, 20) + pow(2, 24) ) == -1) { //dunno about this - set it to the entire region
-	fprintf(stderr, "%s: start_trace failed\n", strerror(errno));
-	return -1;
-    }
+    
     free(wcounts);
     return 0;
 
@@ -129,10 +133,6 @@ long test2a()
     wcounts[4999] = '\0';
 
 
-    if (start_trace(pow(2,20), pow(2, 20) + pow(2, 24) ) == -1) { //dunno about this - set it to the entire region
-	fprintf(stderr, "%s: start_trace failed\n", strerror(errno));
-	return -1;
-    }  	
     if (pthread_create(&t1, NULL, runThread1, NULL) == -1)
     {
 	fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
@@ -145,6 +145,37 @@ long test2a()
     }
 
     stop_trace();
+    free(wcounts);
+    return 0;
+}
+
+long test3a()
+{
+    pthread_t t1, t2;
+    int *wcounts = (int *) malloc(sizeof(int)*5000);
+    wcounts[4999] = '\0';
+
+    if (stop_trace()>=0)
+    {
+	fprintf(stderr, "SHOULD NOT WORK - stop_trace called before start_trace\n");
+	return -1;
+    }
+    if (start_trace(-1, pow(2, 20) + pow(2, 24) ) >= 0) { 
+	fprintf(stderr, "%s: start_trace failed - given a negative start value\n");
+	return -1;
+    }
+
+    if (start_trace(pow(2,20), -1 ) >= 0) { //dunno about this - set it to the entire region
+	fprintf(stderr, "%s: start_trace failed - given a negative size value\n");
+	return -1;
+    }
+
+    if( get_trace(-4, wcounts) >= 0 )
+    {
+	printf("get_trace should not return success on invalid pid.\n");
+	return -1;
+    }
+
     free(wcounts);
     return 0;
 }
