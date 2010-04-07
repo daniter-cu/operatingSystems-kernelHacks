@@ -3,8 +3,8 @@
 CC=gcc
 CFLAGS=-Wall
  
- TESTSRC=test-atomic
- CFLAGSTEST=-Wall -I ~/W4118/linux-2.6.11.12-hw3/include -static
+ TESTSRC=hw5test
+ CFLAGSTEST=-Wall -I ~/Ker_Hack/linux-2.6.11.12-hmwk5/include -static
   
 test: main.o test.o $(TESTSRC).o
 	$(CC) -o $@ $^ -lpthread
