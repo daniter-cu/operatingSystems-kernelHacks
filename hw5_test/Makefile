@@ -4,7 +4,7 @@ CC=gcc
 CFLAGS=-Wall
  
  TESTSRC=hw5test
- CFLAGSTEST=-Wall -I ~/Ker_Hack/linux-2.6.11.12-hmwk5/include -static
+ CFLAGSTEST=-Wall -I ~/linux-2.6.11.12-hmwk5/include -static
   
 test: main.o test.o $(TESTSRC).o
 	$(CC) -o $@ $^ -lpthread

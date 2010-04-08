@@ -13,10 +13,10 @@
 #include <sys/time.h> 
 #include "test.h"
    
-long _syscall2(long, start_trace, unsigned long, start, size_t, size); 
-long _syscall0(long, stop_trace); 
-long _syscall2(long, get_trace, pid_t, tid, int *, wcounts);   
-long _syscall0(long, gettid);
+_syscall2(long, start_trace, unsigned long, start, size_t, size); 
+_syscall0(long, stop_trace); 
+_syscall2(long, get_trace, pid_t, tid, int *, wcounts);   
+_syscall0(long, gettid);
 
 
 
@@ -32,23 +32,23 @@ void *runThread1(void *arg)
     struct foo *temp;
     char *string;
 
-    temp = (struct foo*)malloc(sizeof(struct foo));
-    if(temp == NULL)
-    {
-	printf("Malloc failed\n");
-	return (void*) -1;
+
+    int *wcounts = (int *) malloc(sizeof(int)*5000);
+    if(wcounts == NULL)
+    {	
+	printf("Malloc failed.\n");
+	return  (void *) -1;
     }
 
-    int *wcounts;
-    wcounts = (int *) arg;
+    memset(wcounts, '\0', 5000);
 
     x = 5; 
     y = 6;
     string = "hello, world!\n";
 
-    if (start_trace(pow(2,20), pow(2, 20) + pow(2, 24) ) == -1) { //dunno about this - set it to the entire region
+    if (start_trace(pow(2,20), pow(2, 24) ) == -1) { 
 	fprintf(stderr, "%s: start_trace failed\n", strerror(errno));
-	return -1;
+	return (void *) -1;
     }
 
     for (i = 0; i < 50; i++)
@@ -66,73 +66,49 @@ void *runThread1(void *arg)
    if (stop_trace() < 0)
     {
 	fprintf(stderr, "%s: start_trace failed\n", strerror(errno));
-	return -1;
+	return (void*) -1;
     }
   
     if (get_trace(gettid(), wcounts) < 0)
 	fprintf(stderr, "%s: get_trace failed\n", strerror(errno));
-}
 
-/* running a number of memory accesses by setting variables and struct
- * values but for loop is only completed 5 times */
-/*static int runThread2(void *arg)
-{
-    int x;
-    int y;
-    int i;
-   // struct foo *temp;
-    char *string;
-
-    int *wcounts;
-    wcounts = (int *) arg;
-
-    x = 1; 
-    y = 3;
-    string = "hello, world!\n";
-
-    for (i = 0; i < 5; i++)
+	
+    for(i = 0; i < 5000; i++)
     {
-	x = x + y;
+	printf("%d", wcounts[i]);
     }
+    printf("\n");
 
-    temp->id = 5;
-    temp->str = string;
 
-    if (get_trace(gettid(), wcounts) < 0)
-	fprintf(stderr, "%s: get_trace failed\n", strerror(errno));
+    free(wcounts);
 }
-*/
 
-/* two calls to sys_start_trace without sys_stop_trace inbetween */
-/* should return -EINVAL */
+
+/* Stress test.  Create  many threads that all do memory accesses" */
+
 long test1a()
 {
-    pthread_t t1, t2, t3;
-    int *wcounts = (int *) malloc(sizeof(int)*5000);
-    wcounts[4999] = '\0';
+    pthread_t t[100];
 
-    if (pthread_create(&t1, NULL, runThread1, (void*) wcounts) == -1) {
-	fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
+    int i;
+    for(i = 0; i< 100; i++)
+    {
+  	if (pthread_create(&t[i], NULL, runThread1, NULL) == -1) {
+		fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
+         }
     }
-    if (pthread_create(&t2, NULL, runThread1, (void*) wcounts) == -1) {
-	fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
-    }
-    if (pthread_create(&t3, NULL, runThread1, (void*) wcounts) == -1) {
-	fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
-    }
-    
-    free(wcounts);
     return 0;
 
 }
 
+/*
+ * This is a regular test with two threads that do many memory
+ * accesses.
+ */
 long test2a()
 {
     pthread_t t1, t2;
-    int *wcounts = (int *) malloc(sizeof(int)*5000);
-    wcounts[4999] = '\0';
-
-
+  
     if (pthread_create(&t1, NULL, runThread1, NULL) == -1)
     {
 	fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
@@ -144,16 +120,16 @@ long test2a()
 	return -1;
     }
 
-    stop_trace();
-    free(wcounts);
     return 0;
 }
 
+
+/*
+ * This test to see that correct errors are returned on invalid
+ * arguments.
+ */
 long test3a()
 {
-    pthread_t t1, t2;
-    int *wcounts = (int *) malloc(sizeof(int)*5000);
-    wcounts[4999] = '\0';
 
     if (stop_trace()>=0)
     {
@@ -161,14 +137,16 @@ long test3a()
 	return -1;
     }
     if (start_trace(-1, pow(2, 20) + pow(2, 24) ) >= 0) { 
-	fprintf(stderr, "%s: start_trace failed - given a negative start value\n");
+	fprintf(stderr, "%s\n", "start_trace failed - given a negative start value");
 	return -1;
     }
 
-    if (start_trace(pow(2,20), -1 ) >= 0) { //dunno about this - set it to the entire region
-	fprintf(stderr, "%s: start_trace failed - given a negative size value\n");
+    if (start_trace(pow(2,20), -1 ) >= 0) { 
+	fprintf(stderr, "%s\n", "start_trace failed - given a negative size value");
 	return -1;
     }
+
+    int wcounts[5000];
 
     if( get_trace(-4, wcounts) >= 0 )
     {
@@ -181,14 +159,42 @@ long test3a()
 }
 
 
+/*
+ * Stress test.  See that tracing works after forks.
+ */
+long test4a()
+{
+    int i;
+    for(i = 0; i < 10; i++)
+    {
+	if(fork() < 0)
+	    return -1;
+	else
+	{
+   	 pthread_t t1, t2;
+  
+ 	   if (pthread_create(&t1, NULL, runThread1, NULL) == -1)
+    	{
+		fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
+		return -1;
+    	}
+    	if (pthread_create(&t2, NULL, runThread1, NULL) == -1)
+    	{
+		fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
+		return -1;
+	}
+	}
+    }
+    return 0;
+}
 
-struct testcase testcase1a = {"1a", "example in the homework - thread 2 should run roughly twice as long as thread 1 and thread 2", test1a};
-struct testcase testcase2a = {"2a", "two threads in which the probability between the two colors is 10", test2a};
-//struct testcase testcase2b = {"2b", "two threads in which the probability between the two colors is 0", test2b};
-//struct testcase testcase3a = {"3a", "set the probability between two threads to an invalid value of -1", test3a};
-//struct testcase testcase3b = {"3b", "set the color of the second thread to an invalid value of 9", test3b};
-//struct testcase testcase4a = {"4a", "create five threads of different colors with probabilities inbetween", test4a};
-//struct testcase testcase4b = {"4b", "create five threads in which there are multiple threads with the same color - should round robin between those threads", test4b};
+
+
+
+struct testcase testcase1a = {"1a", "Stress test on many threads doing memory access.", test1a};
+struct testcase testcase2a = {"2a", "Regular use of new system calls.  General Test", test2a};
+struct testcase testcase3a = {"3a", "Test return of system calls when invalid args are passed.", test3a};
+struct testcase testcase4a = {"4a", "Stress test for many processeses making threads that access memory pages.", test4a};
 
 
 struct testcase **testcase;
@@ -197,14 +203,11 @@ void init_testcase()
 {
     int i = 0;
 
-    testcase = malloc(sizeof(struct testcase) * 8);
+    testcase = malloc(sizeof(struct testcase) * 5);
 
     testcase[i++] = &testcase1a;
     testcase[i++] = &testcase2a;
-   // testcase[i++] = &testcase2b;
-   // testcase[i++] = &testcase3a;
-   // testcase[i++] = &testcase3b;
-   // testcase[i++] = &testcase4a;
-  //  testcase[i++] = &testcase4b;
+    testcase[i++] = &testcase3a;
+    testcase[i++] = &testcase4a;
     testcase[i++] = NULL; 
 }
