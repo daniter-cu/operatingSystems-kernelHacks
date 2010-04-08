@@ -81,6 +81,7 @@ void *runThread1(void *arg)
 
 
     free(wcounts);
+    return(void *)0;
 }
 
 
