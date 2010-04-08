@@ -294,8 +294,11 @@
 #define __NR_add_key		286
 #define __NR_request_key	287
 #define __NR_keyctl		288
+#define __NR_sys_start_trace    293 /* HW5 */
+#define __NR_sys_stop_trace     294
+#define __NR_sys_get_trace      295
 
-#define NR_syscalls 289
+#define NR_syscalls 292
 
 /*
  * user-visible error numbers are in the range -1 - -128: see

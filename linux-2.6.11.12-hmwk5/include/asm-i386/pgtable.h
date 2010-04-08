@@ -208,6 +208,7 @@ extern unsigned long pg0[];
 #define pmd_clear(xp)	do { set_pmd(xp, __pmd(0)); } while (0)
 #define	pmd_bad(x)	((pmd_val(x) & (~PAGE_MASK & ~_PAGE_USER)) != _KERNPG_TABLE)
 
+#define pte_trace(x) (1) /* OS HW5 filler - need to complete */
 
 #define pages_to_mb(x) ((x) >> (20-PAGE_SHIFT))
 

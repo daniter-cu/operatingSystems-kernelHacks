@@ -1254,6 +1254,41 @@ static inline void break_cow(struct vm_area_struct * vma, struct page * new_page
 	update_mmu_cache(vma, address, entry);
 }
 
+/* HW5: struct traced_mm */
+struct traced_mm {
+	/* the traced memory space */
+	struct list_head list;
+};
+
+LIST_HEAD(traced_mm_list);
+
+/* HW5: pte_protect_tick
+ * a ticking function reprotecting the traced pte 
+ * this function should be called 'periodically' */
+void pte_protect_tick(void) 
+{
+	/* check the traced_mm_list */
+	/* for every traced memory space */
+		/* reprotect the traced range */
+}
+
+/* HW5: do_pte_trace 
+ * do pte tracing, protection and counter increase */
+static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
+			 unsigned long addr, int write_access)
+{
+	/* check if pte is present */
+	/* if pte is not traced but protected, leave it alone */
+	/* recheck some attribute and range */
+	if (write_access) {
+		/* set pte to be traced and unprotected*/
+		/* increase the count in task_struct */
+	}
+	else {
+		/* set pte to be traced and protected */
+	}
+}
+
 /*
  * This routine handles present pages, when users try to write
  * to a shared page. It is done by copying the page to a new address
@@ -1303,6 +1338,10 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct * vma,
 			entry = maybe_mkwrite(pte_mkyoung(pte_mkdirty(pte)),
 					      vma);
 			ptep_set_access_flags(vma, address, page_table, entry, 1);
+			
+			/* HW5: do_wp_page entry, reuse old page */
+			do_pte_trace(page_table, vma, address, 1);
+			
 			update_mmu_cache(vma, address, entry);
 			pte_unmap(page_table);
 			spin_unlock(&mm->page_table_lock);
@@ -1351,6 +1390,10 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct * vma,
 		/* Free the old page.. */
 		new_page = old_page;
 	}
+
+	/* HW5: do_wp_page entry, after C-O-W */
+	do_pte_trace(page_table, vma, address, 1);
+
 	pte_unmap(page_table);
 	page_cache_release(new_page);
 	page_cache_release(old_page);
@@ -1768,6 +1811,9 @@ static int do_swap_page(struct mm_struct * mm,
 		goto out;
 	}
 
+	/* HW5: do_swap_page entry, after swap-in-pages */
+	do_pte_trace(page_table, vma, address, write_access);
+
 	/* No need to invalidate - it was non-present before */
 	update_mmu_cache(vma, address, pte);
 	pte_unmap(page_table);
@@ -1825,6 +1871,10 @@ do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	}
 
 	set_pte(page_table, entry);
+	
+	/* HW5: do_anonymous_page entry, after page creation */
+	do_pte_trace(page_table, vma, addr, write_access);
+
 	pte_unmap(page_table);
 
 	/* No need to invalidate - it was non-present before */
@@ -1945,6 +1995,10 @@ retry:
 			page_add_anon_rmap(new_page, vma, address);
 		} else
 			page_add_file_rmap(new_page);
+		
+		/* HW5: do_no_page entry, after page creation */
+		do_pte_trace(page_table, vma, address, write_access);
+		
 		pte_unmap(page_table);
 	} else {
 		/* One of our sibling threads was faster, back out. */
@@ -1993,6 +2047,10 @@ static int do_file_page(struct mm_struct * mm, struct vm_area_struct * vma,
 	spin_unlock(&mm->page_table_lock);
 
 	err = vma->vm_ops->populate(vma, address & PAGE_MASK, PAGE_SIZE, vma->vm_page_prot, pgoff, 0);
+
+	/* HW5: do_file_page entry, after page creation */
+	do_pte_trace(pte, vma, address, write_access);
+
 	if (err == -ENOMEM)
 		return VM_FAULT_OOM;
 	if (err)
@@ -2042,13 +2100,22 @@ static inline int handle_pte_fault(struct mm_struct *mm,
 	}
 
 	if (write_access) {
-		if (!pte_write(entry))
+		/* HW5: change the condition to call do_wp_page
+		 * do C-O-W only if it's protected but not traced */
+	  /* commented out pte_trace macro until implemented */
+	  if (!pte_write(entry)/* && !pte_trace(entry)*/) {
 			return do_wp_page(mm, vma, address, pte, pmd, entry);
+		}
 
 		entry = pte_mkdirty(entry);
 	}
 	entry = pte_mkyoung(entry);
 	ptep_set_access_flags(vma, address, pte, entry, write_access);
+	
+	/* HW5: handle_pte_fault entry, after a normal fault */
+	if (write_access)
+		do_pte_trace(pte, vma, address, 1);
+
 	update_mmu_cache(vma, address, entry);
 	pte_unmap(pte);
 	spin_unlock(&mm->page_table_lock);
@@ -2313,3 +2380,23 @@ struct page * kdb_follow_page(struct mm_struct *mm, unsigned long address, int w
 	return page;
 }
 #endif
+
+/* HW5: system call sys_get_trace
+ * 'start' and 'size' specify the range of trace */
+asmlinkage long sys_start_trace(unsigned long start, size_t size)
+{
+	return 0;
+}
+
+/* HW5: system call sys_stop_trace */
+asmlinkage long sys_stop_trace(void)
+{
+	return 0;
+}
+
+/* HW5: system call sys_get_trace
+ * 'tid' as thread id, 'wcount' as the returned counter value */
+asmlinkage long sys_get_trace(pid_t tid, int *wcount)
+{
+	return 0;
+}
