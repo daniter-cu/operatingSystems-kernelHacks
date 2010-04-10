@@ -1293,19 +1293,20 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 //	}
 
 	task_t * task = current;
-	task_t * leader = task->groupleader;
+	task_t * leader = task->group_leader;
 	unsigned long start, end;
-	start = leader->start;
-	end = leader->end;
 	int _index, index;
-	int* count = task->wcount;
+	int* count;
+	start = leader->trace_start;
+	end = leader->trace_end;
+	count = task->wcount;
 
          /* check if pte is present */
-	if(!pte_entry(pte))
+	if(!pte_present(*pte))
 		return;
 
          /* if pte is not traced but protected, leave it alone */
-	if(!pte_traced(pte) && pte_write(pte) )
+	if(!pte_traced(*pte) && pte_write(*pte) )
 		return;	
 
          /* recheck some attribute and range */
@@ -1314,8 +1315,8 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 
          if (write_access) {
                  /* set pte to be traced and unprotected*/
-		pte_mktraced(pte);
-		pte_mkwrite(pte);
+		pte_mktraced(*pte);
+		pte_mkwrite(*pte);
 		
                  /* increase the count in task_struct */
         	_index = start - addr;
@@ -1324,8 +1325,8 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 	}
          else {
                  /* set pte to be traced and protected */
-		pte_mktraced(pte);
-		pte_wrprotect(pte);
+		pte_mktraced(*pte);
+		pte_wrprotect(*pte);
          }
 
 }
