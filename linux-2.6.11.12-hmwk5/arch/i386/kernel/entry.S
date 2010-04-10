@@ -890,6 +890,10 @@ ENTRY(sys_call_table)
 	.long sys_add_key
 	.long sys_request_key
 	.long sys_keyctl
+	.long sys_unused
+	.long sys_unused     /* 290 unused */
+	.long sys_unused
+	.long sys_unused
 	.long sys_start_trace /* HW5 293 */
 	.long sys_stop_trace /* HW5 294 */
 	.long sys_get_trace /* HW5 295 */
