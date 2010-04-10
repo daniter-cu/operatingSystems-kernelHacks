@@ -2386,14 +2386,14 @@ static void clean_traced_mm()
 {
 	traced_mm_t *curr;
 	traced_mm_t *next;
-	curr = list_entry(trace_mm_list->next, traced_mm_t, list);
+	curr = list_entry(traced_mm_list->next, traced_mm_t, list);
 	
 	/* free traced_mm_list */
 	while (curr != &trace_mm_list)
 	{
 		if(curr->tgid != current->tgid)
 			continue;
-		next = list_entry(curr->next, traced_mm_list, list);
+		next = list_entry(curr->next, traced_mm_t, list);
 		list_del(curr);
 		kfree(curr);
 		curr = next;
@@ -2407,7 +2407,8 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	return 0;
 }
 
-asmlinkage long sys_stop_trace()
+/* HW5: system call sys_stop_trace */
+asmlinkage long sys_stop_trace(void)
 {
 	unsigned long i, start, end;
 	pte_t *pte;
@@ -2445,11 +2446,6 @@ asmlinkage long sys_stop_trace()
 	}
 
 	clean_traced_mm();
-}
-
-/* HW5: system call sys_stop_trace */
-asmlinkage long sys_stop_trace(void)
-{
 	return 0;
 }
 
