@@ -59,6 +59,7 @@
 #include <linux/swapops.h>
 #include <linux/elf.h>
 
+#include <linux/list.h> /* OS HW5 */
 #ifndef CONFIG_DISCONTIGMEM
 /* use the per-pgdat data instead for discontigmem - mbligh */
 unsigned long max_mapnr;
@@ -1256,9 +1257,11 @@ static inline void break_cow(struct vm_area_struct * vma, struct page * new_page
 
 /* HW5: struct traced_mm */
 struct traced_mm {
-	/* the traced memory space */
 	struct list_head list;
+	struct mm_struct *mm;
+	pid_t tgid;
 };
+typedef struct traced_mm traced_mm_t;
 
 //This might need to be a pointer!  traced_mm->list
 LIST_HEAD(traced_mm_list);
@@ -2104,7 +2107,7 @@ static inline int handle_pte_fault(struct mm_struct *mm,
 		/* HW5: change the condition to call do_wp_page
 		 * do C-O-W only if it's protected but not traced */
 	  /* commented out pte_trace macro until implemented */
-	  if (!pte_write(entry)/* && !pte_trace(entry)*/) {
+	  if (!pte_write(entry) && !pte_traced(entry)) {
 			return do_wp_page(mm, vma, address, pte, pmd, entry);
 		}
 
@@ -2382,12 +2385,127 @@ struct page * kdb_follow_page(struct mm_struct *mm, unsigned long address, int w
 }
 #endif
 
+/* HW5: clean wcount */
+static void clean_wcount() {
+	task_t *group_leader = current->group_leader;
+	task_t *current_task = current;
+	do {
+		if(current_task->wcount) {
+			kfree(current_task->wcount);
+		}
+		current_task = next_task(current_task);
+	}while(current_task != group_leader);
+	// clean wcount
+}
+
+
 /* HW5: system call sys_get_trace
  * 'start' and 'size' specify the range of trace */
 asmlinkage long sys_start_trace(unsigned long start, size_t size)
 {
+	unsigned long long start_page = start >> PAGE_SHIFT;
+	unsigned long long end_page = (start + size) >> PAGE_SHIFT;
+	unsigned long long num_pages = end_page - start_page;
+	unsigned long i = start;
+	pte_t *pte = NULL;
+	task_t *group_leader = NULL;
+	task_t *cur_thread = NULL;
+	traced_mm_t *temp = NULL;
+	pgd_t *pgd = NULL;
+	pmd_t *pmd = NULL;
+	pud_t *pud = NULL;
+	/* error checking ... */
+	
+	
+	
+	/* get thread group leader task_struct */
+	group_leader = current->group_leader;
+		/* store addr range */
+	group_leader->trace_start = start;
+	group_leader->trace_end = start + size;
+	cur_thread = group_leader;
+	
+
+	
+	/* initialize counts[] based on addr range */
+	/* size / PAGE_SIZE ? */
+	do {
+
+		if(cur_thread->mm == NULL) { /* error */ }
+		temp = (traced_mm_t *)kmalloc(sizeof(traced_mm_t), GFP_KERNEL);
+		/* check kmalloc */
+		if(temp==NULL) { return -ENOMEM; }
+		/* else */
+		temp->mm = cur_thread->mm;
+		temp->tgid = cur_thread->tgid;
+		INIT_LIST_HEAD(& (*temp).list);
+
+		list_add_tail(& temp->list, &traced_mm_list);
+
+
+		if(! cur_thread->wcount) {
+			cur_thread->wcount = (int *)kmalloc(num_pages, GFP_KERNEL);
+		}
+		if(cur_thread->wcount == NULL) {
+			/* kmalloc error */
+			/* cleanup? */
+			return -ENOMEM;
+		}
+		memset(cur_thread->wcount, '\0', num_pages);
+		cur_thread = next_thread(cur_thread);
+	}while(cur_thread != group_leader);
+	
+	
+	/* foreach address in range */
+	for(i = start; i < start+size; i += PAGE_SIZE) {
+		cur_thread = group_leader;
+
+		
+		
+		do {
+			/* get pte_t */
+			/*pte = pte_offset_map(pmd_offset(pud_offset(pgd_offset(cur_thread->mm), i), i), i);*/
+			
+			pgd = pgd_offset(cur_thread->mm, i);
+			if(pgd_none(*pgd)) {
+				/* clean_traced_mm(); */// clean function
+				clean_wcount();// clean wcount
+				return -EBADR;
+			}/* error!! */
+			
+			pud = pud_offset(pgd, i);
+			if(pud_none(*pud)) {
+				/* clean_traced_mm(); */// clean function
+				clean_wcount();// clean wcount
+				return -EBADR;
+			} /* error! */
+			
+			pmd = pmd_offset(pud, i);
+			if(pmd_none(*pmd)) {
+				/* clean_traced_mm(); */
+				clean_wcount();
+				return -EBADR;
+			} /* error! */
+			
+			pte = pte_offset_kernel(pmd, i);
+			if(pte_none(*pte)) {
+				/* clean_traced_mm(); */
+				clean_wcount();
+				return -EBADR;
+			} /* error! */
+			
+			/* set traced bit */
+			pte_mktraced(*pte);
+			/* write-protect */
+			pte_wrprotect(*pte);
+			
+			cur_thread = next_thread(cur_thread);
+		}while(cur_thread != group_leader);
+	}
 	return 0;
 }
+
+
 
 /* HW5: system call sys_stop_trace */
 asmlinkage long sys_stop_trace(void)
