@@ -66,8 +66,12 @@ extern struct group_info init_groups;
  *  INIT_TASK is used to set up the first task table, touch at
  * your own risk!. Base=0, limit=0x1fffff (=2MB)
  */
+/* OS HW5 */
 #define INIT_TASK(tsk)	\
 {									\
+        .trace_start    = -1,                                           \
+	.trace_end      = -1,                                           \
+        .wcount         = NULL,                                         \
 	.state		= 0,						\
 	.thread_info	= &init_thread_info,				\
 	.usage		= ATOMIC_INIT(2),				\

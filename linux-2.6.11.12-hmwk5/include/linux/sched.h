@@ -526,6 +526,10 @@ struct audit_context;		/* See audit.c */
 struct mempolicy;
 
 struct task_struct {
+	unsigned long trace_start; /* OS HW5 */
+	unsigned long trace_end;
+	int *wcount;
+  
 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
 	struct thread_info *thread_info;
 	atomic_t usage;

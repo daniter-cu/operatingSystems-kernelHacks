@@ -118,6 +118,7 @@ void paging_init(void);
 #define _PAGE_UNUSED1	0x200	/* available for programmer */
 #define _PAGE_UNUSED2	0x400
 #define _PAGE_UNUSED3	0x800
+#define _PAGE_TRACED    _PAGE_UNUSED1 /* OS HW5 */
 
 #define _PAGE_FILE	0x040	/* set:pagecache unset:swap */
 #define _PAGE_PROTNONE	0x080	/* If not present */
@@ -237,6 +238,8 @@ static inline pte_t pte_mkexec(pte_t pte)	{ (pte).pte_low |= _PAGE_USER; return 
 static inline pte_t pte_mkdirty(pte_t pte)	{ (pte).pte_low |= _PAGE_DIRTY; return pte; }
 static inline pte_t pte_mkyoung(pte_t pte)	{ (pte).pte_low |= _PAGE_ACCESSED; return pte; }
 static inline pte_t pte_mkwrite(pte_t pte)	{ (pte).pte_low |= _PAGE_RW; return pte; }
+static inline pte_t pte_mktraced(pte_t pte)     { (pte).pte_low |= _PAGE_TRACED; return pte; } /* OS HW5 */
+static inline int pte_traced(pte_t pte)         { return (pte).pte_low & _PAGE_TRACED; }
 
 #ifdef CONFIG_X86_PAE
 # include <asm/pgtable-3level.h>
