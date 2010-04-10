@@ -2400,7 +2400,8 @@ static void clean_traced_mm(void)
 		if(curr->tgid != current->tgid)
 		{
 		    list_ptr = list_ptr->next;
-		    curr = list_entry(list_ptr, traced_mm_t, list);
+		    if (list_ptr != &traced_mm_list)
+			curr = list_entry(list_ptr, traced_mm_t, list);
 		    continue;
 		}
 
