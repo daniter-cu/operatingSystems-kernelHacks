@@ -2382,11 +2382,69 @@ struct page * kdb_follow_page(struct mm_struct *mm, unsigned long address, int w
 }
 #endif
 
+static void clean_traced_mm()
+{
+	traced_mm_t *curr;
+	traced_mm_t *next;
+	curr = list_entry(trace_mm_list->next, traced_mm_t, list);
+	
+	/* free traced_mm_list */
+	while (curr != &trace_mm_list)
+	{
+		if(curr->tgid != current->tgid)
+			continue;
+		next = list_entry(curr->next, traced_mm_list, list);
+		list_del(curr);
+		kfree(curr);
+		curr = next;
+	}
+}
+
 /* HW5: system call sys_get_trace
  * 'start' and 'size' specify the range of trace */
 asmlinkage long sys_start_trace(unsigned long start, size_t size)
 {
 	return 0;
+}
+
+asmlinkage long sys_stop_trace()
+{
+	unsigned long i, start, end;
+	pte_t *pte;
+
+	task_t *group_leader = current->group_leader;
+	task_t *cur_thread = group_leader;
+
+	start = group_leader->trace_start;
+	end = group_leader->trace_end;
+
+	for (i = start; i < end; i += PAGE_SIZE)
+	{
+		do {
+			/* get pte_t */	
+			pgd_t *pgd = pgd_offset(cur_thread->mm, i);
+			if(pgd_none(*pgd)) {}/* error!! */
+			
+			pud_t *pud = pud_offset(pgd, i);
+			if(pud_none(*pud)) {} /* error! */
+			
+			pmd_t *pmd = pmd_offset(pmd, i);
+			if(pmd_none(*pmd)) {} /* error! */
+			
+			pte = pte_offset_map(pmd, i);
+			if(pte_none(*pte)) {} /* error! */
+			
+			/* reset traced bit */
+			pte_mkuntraced(*pte);
+			/* allow write */
+			pte_mkwrite(*pte)
+	
+			/* next thread in group */
+			cur_thread = next_thread(cur_thread);
+		}while(cur_thread != group_leader);
+	}
+
+	clean_traced_mm();
 }
 
 /* HW5: system call sys_stop_trace */
