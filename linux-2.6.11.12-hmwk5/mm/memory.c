@@ -1260,6 +1260,7 @@ struct traced_mm {
 	struct list_head list;
 };
 
+//This might need to be a pointer!  traced_mm->list
 LIST_HEAD(traced_mm_list);
 
 /* HW5: pte_protect_tick
