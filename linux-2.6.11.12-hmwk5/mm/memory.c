@@ -1295,7 +1295,7 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 	task_t * task = current;
 	task_t * leader = task->group_leader;
 	unsigned long start, end;
-	int _index, index;
+	int index;
 	int* count;
 	start = leader->trace_start;
 	end = leader->trace_end;
@@ -1319,8 +1319,9 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 		pte_mkwrite(*pte);
 		
                  /* increase the count in task_struct */
-        	_index = start - addr;
-		index = _index/PAGE_SIZE;
+        	//_index = start - addr;
+		//index = _index/PAGE_SIZE;
+		index = (start >> PAGE_SHIFT) - (addr >> PAGE_SHIFT);
 		++count[index];
 	}
          else {
