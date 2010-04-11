@@ -2573,7 +2573,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	for(i = start; i < start+size; i += PAGE_SIZE) {
 		cur_thread = group_leader;
 
-		//spin_lock(& cur_thread->mm->page_table_lock);
+		spin_lock(& cur_thread->mm->page_table_lock);
 		
 		/* get pte_t */
 		/*pte = pte_offset_map(pmd_offset(pud_offset(pgd_offset(cur_thread->mm), i), i), i);*/
@@ -2620,7 +2620,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 		pte_wrprotect(*pte);
 			
 
-		//spin_unlock(& cur_thread->mm->page_table_lock);
+		spin_unlock(& cur_thread->mm->page_table_lock);
 	}
 	return 0;
 }
@@ -2643,6 +2643,7 @@ asmlinkage long sys_stop_trace(void)
 	start = group_leader->trace_start;
 	end = group_leader->trace_end;
 
+	spin_lock(& cur_thread->mm->page_table_lock);
 	for (i = start; i < end; i += PAGE_SIZE)
 	{
 		    
@@ -2683,6 +2684,7 @@ asmlinkage long sys_stop_trace(void)
 		/* allow write */
 		pte_mkwrite(*pte);
 	}
+	spin_unlock(& cur_thread->mm->page_table_lock);
 
 	clean_traced_mm();
 	return 0;
