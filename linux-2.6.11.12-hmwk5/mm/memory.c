@@ -2583,6 +2583,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 			if(pgd_none(*pgd)) {
 				clean_traced_mm(); // clean function
 				clean_wcount();// clean wcount
+				printk("HW5: pgd_none\n");
 				return -EBADR;
 			}/* error!! */
 			
@@ -2590,6 +2591,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 			if(pud_none(*pud)) {
 				clean_traced_mm();// clean function
 				clean_wcount();// clean wcount
+				printk("HW5: pud_none\n");
 				return -EBADR;
 			} /* error! */
 			
@@ -2597,6 +2599,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 			if(pmd_none(*pmd)) {
 				clean_traced_mm();
 				clean_wcount();
+				printk("HW5: pmd_none\n");
 				return -EBADR;
 			} /* error! */
 			
@@ -2604,6 +2607,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 			if(pte_none(*pte)) {
 				clean_traced_mm();
 				clean_wcount();
+				printk("HW5: pte_none\n");
 				return -EBADR;
 			} /* error! */
 			
