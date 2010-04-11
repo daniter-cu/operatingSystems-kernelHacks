@@ -2540,7 +2540,8 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	pud_t *pud = NULL;
 	/* error checking ... */
 	int pte_count = 0;
-	
+	printk("HW5: test\n");
+	printk("HW5: start_trace, start_page = %llu, end_page = %llu\n", start_page, end_page);
 	
 	/* get thread group leader task_struct */
 	group_leader = current->group_leader;
@@ -2579,7 +2580,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	
 	/* foreach address in range */
 	for(i = start; i < start+size; i += PAGE_SIZE) {
-		printk("HW5: start_trace, for-loop i = %ul\n", i);
+		printk("HW5: start_trace, for-loop i = %lu\n", i);
 		cur_thread = group_leader;
 
 		/* spin_lock(& cur_thread->mm->page_table_lock); */
