@@ -74,11 +74,6 @@ int main(int argc, char *argv[])
 	exit(EXIT_FAILURE);
     }
 
-    if (start_trace(pow(2, 20), pow(2, 24) ) == -1)
-    {
-	fprintf(stderr, "%s: start_trace failed\n", strerror(errno));
-	return -1;
-    }
     
     /* Now the file is ready to be mmapped.
      */
@@ -91,9 +86,18 @@ int main(int argc, char *argv[])
 	exit(EXIT_FAILURE);
     }
 
+     map[0] = 1; /* first write to allocate memory */
+     
+     if (start_trace(pow(2, 20), pow(2, 24) ) == -1)
+     {
+	     fprintf(stderr, "%s: start_trace failed\n", strerror(errno));
+	     return -1;
+     }
+     
+
     /* Now write int's to the file as if it were memory (an array of ints).
      */
-    for (i = 1; i <=NUMINTS; ++i) {
+    for (i = 0; i < NUMINTS; ++i) {
 	map[i] = 2 * i; 
     }
 
