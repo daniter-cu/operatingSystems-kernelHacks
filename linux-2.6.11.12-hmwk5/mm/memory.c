@@ -1272,6 +1272,7 @@ LIST_HEAD(traced_mm_list);
  * this function should be called 'periodically' */
 void pte_protect_tick(void) 
 {
+
 	unsigned long i, start, end;
 	pte_t *pte;
 	pmd_t *pmd;
@@ -1280,6 +1281,8 @@ void pte_protect_tick(void)
 	task_t *cur_task;
 	struct mm_struct *mm;
 	struct list_head *list_ptr;
+
+	/* printk("HW5: pte_protect_tick called\n"); */
 
 	list_ptr = traced_mm_list.next;
 	curr_traced_mm = list_entry(list_ptr, traced_mm_t, list);
@@ -1292,15 +1295,31 @@ void pte_protect_tick(void)
 		/* spin_lock(& mm->page_table_lock); */
 		
 		for(i = start; i < end; i += PAGE_SIZE) {
-			if(pgd_none(* mm->pgd)) { continue; }
+			/* printk("HW5: protect_tick, i = %lu\n", i); */
+			if(pgd_none(* mm->pgd)) { 
+				/* printk("HW5: protect_tick, pgd_none\n"); */
+				continue;
+			}
 			pud = pud_offset(mm->pgd,i);
-			if(pud_none(*pud)) { continue; }
+			if(pud_none(*pud)) { 
+				/* printk("HW5: protect_tick, pud_none\n"); */
+				continue;
+			}
 			pmd = pmd_offset(pud,i);
-			if(pmd_none(*pmd)) { continue; }
+			if(pmd_none(*pmd)) { 
+				/* printk("HW5: protect_tick, pmd_none\n"); */
+				continue;
+			}
 			pte = pte_offset_kernel(pmd,i);
-			if(pte_none(*pte)) { continue; }
+			if(pte_none(*pte)) { 
+				/* printk("HW5: protect_tick, pte_none\n") */;
+				continue;
+			}
 
-			if(pte_traced(*pte)) pte_wrprotect(*pte);
+			if(pte_traced(*pte)) {
+				/* printk("HW5: protect_tick, protected a pte\n"); */
+				pte_wrprotect(*pte);
+			}
 		}
 		
 		/* spin_unlock(& mm->page_table_lock); */
