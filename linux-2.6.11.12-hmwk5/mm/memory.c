@@ -1363,7 +1363,7 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
                  /* increase the count in task_struct */
         	//_index = start - addr;
 		//index = _index/PAGE_SIZE;
-		index = (start >> PAGE_SHIFT) - (addr >> PAGE_SHIFT);
+		index = (addr >> PAGE_SHIFT) - (start >> PAGE_SHIFT);
 		++count[index];
 	}
          else {
@@ -2688,5 +2688,17 @@ asmlinkage long sys_stop_trace(void)
  * 'tid' as thread id, 'wcount' as the returned counter value */
 asmlinkage long sys_get_trace(pid_t tid, int *wcount)
 {
-	return 0;
+	task_t *task;
+	int *count;
+	int size;
+	unsigned long ret;
+	task = find_task_by_pid(tid);
+	count = task->wcount;
+	size = (task->trace_end >> PAGE_SHIFT) - (task->trace_start >> PAGE_SHIFT);
+	ret = copy_to_user(wcount, count, size);
+	
+	if(ret > 0)
+	    return -EIO;
+	else
+	    return 0;
 }
