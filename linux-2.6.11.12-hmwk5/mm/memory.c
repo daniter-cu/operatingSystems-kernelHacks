@@ -60,6 +60,7 @@
 #include <linux/elf.h>
 
 #include <linux/list.h> /* OS HW5 */
+#include <linux/spinlock.h> /* OS HW5 */
 #ifndef CONFIG_DISCONTIGMEM
 /* use the per-pgdat data instead for discontigmem - mbligh */
 unsigned long max_mapnr;
@@ -1271,6 +1272,47 @@ LIST_HEAD(traced_mm_list);
  * this function should be called 'periodically' */
 void pte_protect_tick(void) 
 {
+	unsigned long i, start, end;
+	pte_t *pte;
+	pmd_t *pmd;
+	pud_t *pud;
+	traced_mm_t *curr_traced_mm;
+	task_t *cur_task;
+	struct mm_struct *mm;
+	struct list_head *list_ptr;
+
+	list_ptr = traced_mm_list.next;
+	curr_traced_mm = list_entry(list_ptr, traced_mm_t, list);
+
+	while(list_ptr != &traced_mm_list) {
+		cur_task = find_task_by_pid(curr_traced_mm->tgid);
+		start = cur_task->trace_start;
+		end = cur_task->trace_end;
+		mm = curr_traced_mm->mm;
+		spin_lock(& mm->page_table_lock);
+		
+		for(i = start; i < end; i += PAGE_SIZE) {
+			if(pgd_none(* mm->pgd)) { /* error */ }
+			pud = pud_offset(mm->pgd,i);
+			if(pud_none(*pud)) { /* error */ }
+			pmd = pmd_offset(pud,i);
+			if(pmd_none(*pmd)) { /* error */ }
+			pte = pte_offset_kernel(pmd,i);
+			if(pte_none(*pte)) { /* error */ }
+
+			if(pte_traced(*pte)) pte_wrprotect(*pte);
+		}
+		
+		spin_unlock(& mm->page_table_lock);
+		list_ptr = list_ptr->next;
+		if(list_ptr != &traced_mm_list) {
+			curr_traced_mm = list_entry(list_ptr, traced_mm_t, list);
+		}
+	}
+
+		
+
+	
 	/* check the traced_mm_list */
 	/* for every traced memory space */
 		/* reprotect the traced range */
@@ -2531,7 +2573,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	for(i = start; i < start+size; i += PAGE_SIZE) {
 		cur_thread = group_leader;
 
-		
+		spin_lock(& cur_thread->mm->page_table_lock);
 		
 		do {
 			/* get pte_t */
@@ -2539,28 +2581,28 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 			
 			pgd = pgd_offset(cur_thread->mm, i);
 			if(pgd_none(*pgd)) {
-				/* clean_traced_mm(); */// clean function
+				clean_traced_mm(); // clean function
 				clean_wcount();// clean wcount
 				return -EBADR;
 			}/* error!! */
 			
 			pud = pud_offset(pgd, i);
 			if(pud_none(*pud)) {
-				/* clean_traced_mm(); */// clean function
+				clean_traced_mm();// clean function
 				clean_wcount();// clean wcount
 				return -EBADR;
 			} /* error! */
 			
 			pmd = pmd_offset(pud, i);
 			if(pmd_none(*pmd)) {
-				/* clean_traced_mm(); */
+				clean_traced_mm();
 				clean_wcount();
 				return -EBADR;
 			} /* error! */
 			
 			pte = pte_offset_kernel(pmd, i);
 			if(pte_none(*pte)) {
-				/* clean_traced_mm(); */
+				clean_traced_mm();
 				clean_wcount();
 				return -EBADR;
 			} /* error! */
@@ -2572,6 +2614,8 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 			
 			cur_thread = next_thread(cur_thread);
 		}while(cur_thread != group_leader);
+
+		spin_unlock(& cur_thread->mm->page_table_lock);
 	}
 	return 0;
 }
