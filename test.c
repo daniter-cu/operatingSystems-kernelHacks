@@ -87,8 +87,10 @@ int main(int argc, char *argv[])
     }
 
      map[0] = 1; /* first write to allocate memory */
-     
-     if (start_trace(pow(2, 20), pow(2, 24) ) == -1)
+     for(i = 0; i < NUMINTS; ++i) {
+       map[i] = 2*i;
+     }
+     if (start_trace(pow(2, 20), pow(2, 24) ))
      {
 	     fprintf(stderr, "%s: start_trace failed\n", strerror(errno));
 	     return -1;
@@ -101,7 +103,7 @@ int main(int argc, char *argv[])
 	map[i] = 2 * i; 
     }
 
-    if (stop_trace() < 0)
+    if (stop_trace())
     {
 	fprintf(stderr, "%s: stop_trace failed\n", strerror(errno));
 	return -1;
@@ -118,7 +120,7 @@ int main(int argc, char *argv[])
      */
     close(fd);
 
-    if (get_trace(gettid(), wcounts)<0)
+    if (get_trace(gettid(), wcounts))
     {
 	fprintf(stderr, "%s: get_trace failed\n", strerror(errno));
     }

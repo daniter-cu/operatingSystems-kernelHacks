@@ -1344,20 +1344,26 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 	count = task->wcount;
 	
 	int pte_count = 0;
-
-         /* check if pte is present */
-	if(!pte_present(*pte))
+	
+	/* check if pte is present */
+	if(!pte_present(*pte)) {
+		printk("HW5: do_trace, !pte_present\n");
 		return;
-
-         /* if pte is not traced but protected, leave it alone */
-	if(!pte_traced(*pte) && pte_write(*pte) )
+	}	
+	/* if pte is not traced but protected, leave it alone */
+	if(!pte_traced(*pte) && pte_write(*pte) ) {
+		printk("HW5: do_trace, !pte_traced\n");
 		return;	
-
-         /* recheck some attribute and range */
-	if(addr < start || addr > end)
+	}
+	
+	/* recheck some attribute and range */
+	if(addr < start || addr > end) {
+		printk("HW5: do_trace, range\n");
 		return;
+	}
 
          if (write_access) {
+		 printk("HW5: do_trace, pte_mktraced and pte_mkwrite, increment count\n");
 		 ++pte_count;
                  /* set pte to be traced and unprotected*/
 		pte_mktraced(*pte);
@@ -1370,6 +1376,7 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 		++count[index];
 	}
          else {
+		 printk("HW5: do_trace, !write_access -> pte_mktraced, pte_wrprotect\n");
                  /* set pte to be traced and protected */
 		pte_mktraced(*pte);
 		pte_wrprotect(*pte);
@@ -2542,23 +2549,20 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	group_leader->trace_end = start + size;
 	cur_thread = group_leader;
 	
+	if(group_leader->mm == NULL) { /* error */ }
+	temp = (traced_mm_t *)kmalloc(sizeof(traced_mm_t), GFP_KERNEL);
+	/* check kmalloc */
+	if(temp==NULL) { return -ENOMEM; }
+	/* else */
+	temp->mm = group_leader->mm;
+	temp->tgid = group_leader->tgid;
+	INIT_LIST_HEAD(& (*temp).list);
 
+	list_add_tail(& temp->list, &traced_mm_list);
 	
 	/* initialize counts[] based on addr range */
 	/* size / PAGE_SIZE ? */
 	do {
-
-		if(cur_thread->mm == NULL) { /* error */ }
-		temp = (traced_mm_t *)kmalloc(sizeof(traced_mm_t), GFP_KERNEL);
-		/* check kmalloc */
-		if(temp==NULL) { return -ENOMEM; }
-		/* else */
-		temp->mm = cur_thread->mm;
-		temp->tgid = cur_thread->tgid;
-		INIT_LIST_HEAD(& (*temp).list);
-
-		list_add_tail(& temp->list, &traced_mm_list);
-
 
 		if(! cur_thread->wcount) {
 			cur_thread->wcount = (int *)kmalloc(num_pages, GFP_KERNEL);
@@ -2575,6 +2579,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	
 	/* foreach address in range */
 	for(i = start; i < start+size; i += PAGE_SIZE) {
+		printk("HW5: start_trace, for-loop i = %ul\n", i);
 		cur_thread = group_leader;
 
 		/* spin_lock(& cur_thread->mm->page_table_lock); */
@@ -2584,6 +2589,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 			
 		pgd = pgd_offset(cur_thread->mm, i);
 		if(pgd_none(*pgd)) {
+			printk("HW5: start_trace, pgd_none\n");
 			continue;
 			/* clean_traced_mm(); // clean function */
 			/* clean_wcount();// clean wcount */
@@ -2593,6 +2599,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 			
 		pud = pud_offset(pgd, i);
 		if(pud_none(*pud)) {
+			printk("HW5: start_trace, pud_none\n");
 			continue;
 			/* clean_traced_mm();// clean function */
 			/* clean_wcount();// clean wcount */
@@ -2602,6 +2609,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 			
 		pmd = pmd_offset(pud, i);
 		if(pmd_none(*pmd)) {
+			printk("HW5: start_trace, pmd_none\n");
 			continue;
 			/* clean_traced_mm(); */
 			/* clean_wcount(); */
@@ -2611,6 +2619,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 			
 		pte = pte_offset_kernel(pmd, i);
 		if(pte_none(*pte)) {
+			printk("HW5: start_trace, pte_none\n");
 			continue;
 			/* clean_traced_mm(); */
 			/* clean_wcount(); */
