@@ -1292,13 +1292,13 @@ void pte_protect_tick(void)
 		spin_lock(& mm->page_table_lock);
 		
 		for(i = start; i < end; i += PAGE_SIZE) {
-			if(pgd_none(* mm->pgd)) { /* error */ }
+			if(pgd_none(* mm->pgd)) { continue; }
 			pud = pud_offset(mm->pgd,i);
-			if(pud_none(*pud)) { /* error */ }
+			if(pud_none(*pud)) { continue; }
 			pmd = pmd_offset(pud,i);
-			if(pmd_none(*pmd)) { /* error */ }
+			if(pmd_none(*pmd)) { continue; }
 			pte = pte_offset_kernel(pmd,i);
-			if(pte_none(*pte)) { /* error */ }
+			if(pte_none(*pte)) { continue; }
 
 			if(pte_traced(*pte)) pte_wrprotect(*pte);
 		}
@@ -2575,49 +2575,50 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 
 		//spin_lock(& cur_thread->mm->page_table_lock);
 		
-		do {
-			/* get pte_t */
-			/*pte = pte_offset_map(pmd_offset(pud_offset(pgd_offset(cur_thread->mm), i), i), i);*/
+		/* get pte_t */
+		/*pte = pte_offset_map(pmd_offset(pud_offset(pgd_offset(cur_thread->mm), i), i), i);*/
 			
-			pgd = pgd_offset(cur_thread->mm, i);
-			if(pgd_none(*pgd)) {
-				clean_traced_mm(); // clean function
-				clean_wcount();// clean wcount
-				printk("HW5: pgd_none\n");
-				return -EBADR;
-			}/* error!! */
+		pgd = pgd_offset(cur_thread->mm, i);
+		if(pgd_none(*pgd)) {
+			continue;
+			/* clean_traced_mm(); // clean function */
+			/* clean_wcount();// clean wcount */
+			/* printk("HW5: pgd_none\n"); */
+			/* return -EBADR; */
+		}/* error!! */
 			
-			pud = pud_offset(pgd, i);
-			if(pud_none(*pud)) {
-				clean_traced_mm();// clean function
-				clean_wcount();// clean wcount
-				printk("HW5: pud_none\n");
-				return -EBADR;
-			} /* error! */
+		pud = pud_offset(pgd, i);
+		if(pud_none(*pud)) {
+			continue;
+			/* clean_traced_mm();// clean function */
+			/* clean_wcount();// clean wcount */
+			/* printk("HW5: pud_none\n"); */
+			/* return -EBADR; */
+		} /* error! */
 			
-			pmd = pmd_offset(pud, i);
-			if(pmd_none(*pmd)) {
-				clean_traced_mm();
-				clean_wcount();
-				printk("HW5: pmd_none\n");
-				return -EBADR;
-			} /* error! */
+		pmd = pmd_offset(pud, i);
+		if(pmd_none(*pmd)) {
+			continue;
+			/* clean_traced_mm(); */
+			/* clean_wcount(); */
+			/* printk("HW5: pmd_none\n"); */
+			/* return -EBADR; */
+		} /* error! */
 			
-			pte = pte_offset_kernel(pmd, i);
-			if(pte_none(*pte)) {
-				clean_traced_mm();
-				clean_wcount();
-				printk("HW5: pte_none\n");
-				return -EBADR;
-			} /* error! */
+		pte = pte_offset_kernel(pmd, i);
+		if(pte_none(*pte)) {
+			continue;
+			/* clean_traced_mm(); */
+			/* clean_wcount(); */
+			/* printk("HW5: pte_none\n"); */
+			/* return -EBADR; */
+		} /* error! */
 			
-			/* set traced bit */
-			pte_mktraced(*pte);
-			/* write-protect */
-			pte_wrprotect(*pte);
+		/* set traced bit */
+		pte_mktraced(*pte);
+		/* write-protect */
+		pte_wrprotect(*pte);
 			
-			cur_thread = next_thread(cur_thread);
-		}while(cur_thread != group_leader);
 
 		//spin_unlock(& cur_thread->mm->page_table_lock);
 	}
@@ -2644,44 +2645,43 @@ asmlinkage long sys_stop_trace(void)
 
 	for (i = start; i < end; i += PAGE_SIZE)
 	{
-		do {
 		    
-		    	pgd = pgd_offset(cur_thread->mm, i);
-			if(pgd_none(*pgd)) {
-				/* clean_traced_mm(); */// clean function
-				clean_wcount();// clean wcount
-				return -EBADR;
-			}/* error!! */
+		pgd = pgd_offset(cur_thread->mm, i);
+		if(pgd_none(*pgd)) {
+			/* clean_traced_mm(); */// clean function
+			/* clean_wcount();// clean wcount */
+			/* return -EBADR; */
+			continue;
+		}/* error!! */
 			
-			pud = pud_offset(pgd, i);
-			if(pud_none(*pud)) {
-				/* clean_traced_mm(); */// clean function
-				clean_wcount();// clean wcount
-				return -EBADR;
-			} /* error! */
+		pud = pud_offset(pgd, i);
+		if(pud_none(*pud)) {
+			/* clean_traced_mm(); */// clean function
+			/* clean_wcount();// clean wcount */
+			/* return -EBADR; */
+			continue;
+		} /* error! */
 			
-			pmd = pmd_offset(pud, i);
-			if(pmd_none(*pmd)) {
-				/* clean_traced_mm(); */
-				clean_wcount();
-				return -EBADR;
-			} /* error! */
+		pmd = pmd_offset(pud, i);
+		if(pmd_none(*pmd)) {
+			/* clean_traced_mm(); */
+			/* clean_wcount(); */
+			/* return -EBADR; */
+			continue;
+		} /* error! */
 			
-			pte = pte_offset_kernel(pmd, i);
-			if(pte_none(*pte)) {
-				/* clean_traced_mm(); */
-				clean_wcount();
-				return -EBADR;
-			} /* error! */
+		pte = pte_offset_kernel(pmd, i);
+		if(pte_none(*pte)) {
+			/* clean_traced_mm(); */
+			/* clean_wcount(); */
+			/* return -EBADR; */
+			continue;
+		} /* error! */
 		    
-			/* reset traced bit */
-			pte_mkuntraced(*pte);
-			/* allow write */
-			pte_mkwrite(*pte);
-	
-			/* next thread in group */
-			cur_thread = next_thread(cur_thread);
-		}while(cur_thread != group_leader);
+		/* reset traced bit */
+		pte_mkuntraced(*pte);
+		/* allow write */
+		pte_mkwrite(*pte);
 	}
 
 	clean_traced_mm();
@@ -2693,12 +2693,15 @@ asmlinkage long sys_stop_trace(void)
 asmlinkage long sys_get_trace(pid_t tid, int *wcount)
 {
 	task_t *task;
+	task_t *leader;
 	int *count;
 	int size;
 	unsigned long ret;
+	
 	task = find_task_by_pid(tid);
+	leader = task->group_leader;
 	count = task->wcount;
-	size = (task->trace_end >> PAGE_SHIFT) - (task->trace_start >> PAGE_SHIFT);
+	size = (leader->trace_end >> PAGE_SHIFT) - (leader->trace_start >> PAGE_SHIFT);
 	ret = copy_to_user(wcount, count, size);
 	
 	if(ret > 0)
