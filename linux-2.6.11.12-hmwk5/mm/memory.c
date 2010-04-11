@@ -2573,7 +2573,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	for(i = start; i < start+size; i += PAGE_SIZE) {
 		cur_thread = group_leader;
 
-		spin_lock(& cur_thread->mm->page_table_lock);
+		//spin_lock(& cur_thread->mm->page_table_lock);
 		
 		do {
 			/* get pte_t */
@@ -2619,7 +2619,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 			cur_thread = next_thread(cur_thread);
 		}while(cur_thread != group_leader);
 
-		spin_unlock(& cur_thread->mm->page_table_lock);
+		//spin_unlock(& cur_thread->mm->page_table_lock);
 	}
 	return 0;
 }
