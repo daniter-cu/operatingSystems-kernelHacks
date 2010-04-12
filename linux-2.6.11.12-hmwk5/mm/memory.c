@@ -1353,6 +1353,7 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 		/* set pte to be traced and protected */
 //	}
 
+    	pte_t ptentry;
 	task_t * task = current;
 	task_t * leader = task->group_leader;
 	unsigned long start, end;
@@ -1385,8 +1386,9 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 		 printk("HW5: do_trace, pte_mktraced and pte_mkwrite, increment count\n");
 		 ++pte_count;
                  /* set pte to be traced and unprotected*/
-		pte_mktraced(*pte);
-		pte_mkwrite(*pte);
+		ptentry = *pte;
+		ptentry = pte_mktraced(ptentry);
+		ptentry = pte_mkwrite(ptentry);
 		
                  /* increase the count in task_struct */
         	//_index = start - addr;
@@ -1397,8 +1399,9 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
          else {
 		 printk("HW5: do_trace, !write_access -> pte_mktraced, pte_wrprotect\n");
                  /* set pte to be traced and protected */
-		pte_mktraced(*pte);
-		pte_wrprotect(*pte);
+		 ptentry = *pte;
+		ptentry = pte_mktraced(ptentry);
+		ptentry = pte_wrprotect(ptentry);
          }
 	 printk("HW5: do_pte_trace, pte_count = %d\n", pte_count);
 
@@ -2549,7 +2552,8 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	unsigned long long start_page = start >> PAGE_SHIFT;
 	unsigned long long end_page = (start + size) >> PAGE_SHIFT;
 	unsigned long long num_pages = end_page - start_page;
-	unsigned long i = start;
+	unsigned long long i = start;
+	pte_t ptentry;
 	pte_t *pte = NULL;
 	task_t *group_leader = NULL;
 	task_t *cur_thread = NULL;
@@ -2599,7 +2603,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	
 	/* foreach address in range */
 	for(i = start; i < start+size; i += PAGE_SIZE) {
-		printk("HW5: start_trace, for-loop i = %lu\n", i);
+		printk("HW5: start_trace, for-loop i = %llu\n", i);
 		cur_thread = group_leader;
 
 		/* spin_lock(& cur_thread->mm->page_table_lock); */
@@ -2636,7 +2640,8 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 			/* printk("HW5: pmd_none\n"); */
 			/* return -EBADR; */
 		} /* error! */
-			
+	
+	
 		pte = pte_offset_kernel(pmd, i);
 		if(pte_none(*pte)) {
 			printk("HW5: start_trace, pte_none\n");
@@ -2647,11 +2652,12 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 			/* return -EBADR; */
 		} /* error! */
 		++pte_count;
-			
+		
+		ptentry = *pte;
 		/* set traced bit */
-		pte_mktraced(*pte);
+		ptentry = pte_mktraced(ptentry);
 		/* write-protect */
-		pte_wrprotect(*pte);
+		ptentry = pte_wrprotect(ptentry);
 			
 
 		/* spin_unlock(& cur_thread->mm->page_table_lock); */
