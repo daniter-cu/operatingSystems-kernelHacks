@@ -1275,6 +1275,7 @@ void pte_protect_tick(void)
 
 	unsigned long i, start, end;
 	pte_t *pte;
+	pte_t ptentry;
 	pmd_t *pmd;
 	pud_t *pud;
 	traced_mm_t *curr_traced_mm;
@@ -1285,6 +1286,10 @@ void pte_protect_tick(void)
 	/* printk("HW5: pte_protect_tick called\n"); */
 
 	list_ptr = traced_mm_list.next;
+
+	if(list_ptr == &traced_mm_list)
+	    return;
+
 	curr_traced_mm = list_entry(list_ptr, traced_mm_t, list);
 
 	while(list_ptr != &traced_mm_list) {
@@ -1311,14 +1316,16 @@ void pte_protect_tick(void)
 				continue;
 			}
 			pte = pte_offset_kernel(pmd,i);
-			if(pte_none(*pte)) { 
+			if(pte_none(*pte) || !pte_present(*pte)) { 
 				/* printk("HW5: protect_tick, pte_none\n") */;
 				continue;
 			}
 
 			if(pte_traced(*pte)) {
 				/* printk("HW5: protect_tick, protected a pte\n"); */
-				pte_wrprotect(*pte);
+				ptentry = *pte;
+			    	ptentry = pte_wrprotect(ptentry);
+				*pte = ptentry;
 			}
 		}
 		
