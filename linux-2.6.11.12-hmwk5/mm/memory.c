@@ -1389,7 +1389,7 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 		ptentry = *pte;
 		ptentry = pte_mktraced(ptentry);
 		ptentry = pte_mkwrite(ptentry);
-		
+		*pte = ptentry;	
                  /* increase the count in task_struct */
         	//_index = start - addr;
 		//index = _index/PAGE_SIZE;
@@ -1402,6 +1402,7 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 		 ptentry = *pte;
 		ptentry = pte_mktraced(ptentry);
 		ptentry = pte_wrprotect(ptentry);
+		*pte = ptentry;
          }
 	 printk("HW5: do_pte_trace, pte_count = %d\n", pte_count);
 
@@ -2643,7 +2644,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	
 	
 		pte = pte_offset_kernel(pmd, i);
-		if(pte_none(*pte)) {
+		if(!pte_present(*pte) || pte_none(*pte)) {
 			printk("HW5: start_trace, pte_none\n");
 			continue;
 			/* clean_traced_mm(); */
@@ -2658,7 +2659,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 		ptentry = pte_mktraced(ptentry);
 		/* write-protect */
 		ptentry = pte_wrprotect(ptentry);
-			
+		*pte = ptentry;	
 
 		/* spin_unlock(& cur_thread->mm->page_table_lock); */
 		printk("HW5: start_trace pte_count = %d\n", pte_count);
