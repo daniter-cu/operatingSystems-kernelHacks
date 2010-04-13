@@ -2419,12 +2419,6 @@ void scheduler_tick(void)
 	runqueue_t *rq = this_rq();
 	task_t *p = current;
 
-	/* OS HW5 */
-	if(every_other==1) {
-		pte_protect_tick();
-	}
-	every_other *= -1;
-
 	rq->timestamp_last_tick = sched_clock();
 
 	if (p == rq->idle) {
@@ -2447,6 +2441,19 @@ void scheduler_tick(void)
 	 * timeslice. This makes it possible for interactive tasks
 	 * to use up their timeslices at their highest priority levels.
 	 */
+
+	
+		/* OS HW5 */
+	if(every_other==1) {
+		pte_protect_tick();
+	}
+	every_other *= -1;
+
+
+	
+	
+	
+	
 	if (rt_task(p)) {
 		/*
 		 * RR tasks need a special form of timeslice management.

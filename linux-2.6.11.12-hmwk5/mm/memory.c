@@ -1266,6 +1266,11 @@ typedef struct traced_mm traced_mm_t;
 
 //This might need to be a pointer!  traced_mm->list
 LIST_HEAD(traced_mm_list);
+rwlock_t listlock;
+int listlockcount = 0;
+//rwlock_init(&listlock);
+
+
 
 /* HW5: pte_protect_tick
  * a ticking function reprotecting the traced pte 
@@ -1284,42 +1289,84 @@ void pte_protect_tick(void)
 	struct list_head *list_ptr;
 
 	/* printk("HW5: pte_protect_tick called\n"); */
+	if(listlockcount ==0)
+	{
+	    rwlock_init(&listlock);
+	    listlockcount = 1;
+	}
+	
+	read_lock(&listlock);
+	if(list_empty(&traced_mm_list))
+	{
+	    read_unlock(&listlock);
+	    return;
+	}
 
 	list_ptr = traced_mm_list.next;
 
 	if(list_ptr == &traced_mm_list)
+	{
+	    read_unlock(&listlock);
 	    return;
+	}
 
-
-	//comment
 	curr_traced_mm = list_entry(list_ptr, traced_mm_t, list);
+	if(curr_traced_mm == NULL)
+	    return;
 
 	while(list_ptr != &traced_mm_list) {
 		cur_task = find_task_by_pid(curr_traced_mm->tgid);
+		if(cur_task == NULL)
+		{
+			if(list_ptr == NULL || list_ptr->next == NULL)
+		    		return;
+		
+			list_ptr = list_ptr->next;
+			if(list_ptr != &traced_mm_list) {
+				curr_traced_mm = list_entry(list_ptr, traced_mm_t, list);
+			}    
+		    continue;
+		}
+
 		start = cur_task->trace_start;
 		end = cur_task->trace_end;
 		mm = curr_traced_mm->mm;
+		if(mm == NULL)
+		{
+		    printk("tick() current mm is null");
+		    return;
+		}
 		/* spin_lock(& mm->page_table_lock); */
 		
-		for(i = start; i <= end; i += PAGE_SIZE) {
-			/* printk("HW5: protect_tick, i = %lu\n", i); */
+		for(i = start; i < end; i += PAGE_SIZE) {
+
+		    
+			if(!spin_trylock(&mm->page_table_lock))
+			    continue;
+
+
+		    /* printk("HW5: protect_tick, i = %lu\n", i); */
 			if(pgd_none(* mm->pgd)) { 
 				/* printk("HW5: protect_tick, pgd_none\n"); */
+				spin_unlock(&mm->page_table_lock);
 				continue;
 			}
 			pud = pud_offset(mm->pgd,i);
 			if(pud_none(*pud)) { 
-				/* printk("HW5: protect_tick, pud_none\n"); */
+				spin_unlock(&mm->page_table_lock);
+			    /* printk("HW5: protect_tick, pud_none\n"); */
 				continue;
 			}
 			pmd = pmd_offset(pud,i);
-			if(pmd_none(*pmd)) { 
+			if(pmd_none(*pmd)) {
+				spin_unlock(&mm->page_table_lock);
 				/* printk("HW5: protect_tick, pmd_none\n"); */
 				continue;
 			}
 			pte = pte_offset_kernel(pmd,i);
-			if(pte_none(*pte) || !pte_present(*pte)) { 
+			if(pte_none(*pte) || !pte_present(*pte)) {
 				/* printk("HW5: protect_tick, pte_none\n") */;
+				spin_unlock(&mm->page_table_lock);
 				continue;
 			}
 
@@ -1329,18 +1376,22 @@ void pte_protect_tick(void)
 			    	ptentry = pte_wrprotect(ptentry);
 				*pte = ptentry;
 			}
+			spin_unlock(&mm->page_table_lock);
 		}
 		
 		/* spin_unlock(& mm->page_table_lock); */
+		if(list_ptr == NULL || list_ptr->next == NULL)
+		    return;
+		
 		list_ptr = list_ptr->next;
 		if(list_ptr != &traced_mm_list) {
 			curr_traced_mm = list_entry(list_ptr, traced_mm_t, list);
+			if(curr_traced_mm == NULL)
+			    return;
 		}
-	}
+	}	
 
-		
-
-	
+	read_unlock(&listlock);
 	/* check the traced_mm_list */
 	/* for every traced memory space */
 		/* reprotect the traced range */
@@ -1376,20 +1427,21 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 	pte_count = 0;
 
 
+
 	/* check if pte is present */
-	if(!pte_present(*pte)) {
-		printk("HW5: do_trace, !pte_present\n");
+	if(pte == NULL || !pte_present(*pte)) {
+//		printk("HW5: do_trace, !pte_present\n");
 		return;
 	}	
 	/* if pte is not traced but protected, leave it alone */
 	if(!pte_traced(*pte) && pte_write(*pte) ) {
-		printk("HW5: do_trace, !pte_traced\n");
+//		printk("HW5: do_trace, !pte_traced\n");
 		return;	
 	}
 	
 	/* recheck some attribute and range */
 	if(start < 0 || end < 0 || addr < start || addr > end) {
-		printk("HW5: do_trace, range\n");
+//		printk("HW5: do_trace, range\n");
 		return;
 	}
 	
@@ -1413,17 +1465,17 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 
 		index = (int)((addr >> PAGE_SHIFT) - (start >> PAGE_SHIFT));
 		count[index]++;
-		printk("HW5: do_trace, increment count of index %d to %d\n", index, count[index]);
+	//	printk("HW5: do_trace, increment count of index %d to %d\n", index, count[index]);
 	}
 	else {
-		printk("HW5: do_trace, !write_access -> pte_mktraced, pte_wrprotect\n");
+	//	printk("HW5: do_trace, !write_access -> pte_mktraced, pte_wrprotect\n");
 		/* set pte to be traced and protected */
-		ptentry = *pte;
+	    	ptentry = *pte;
 		ptentry = pte_mktraced(ptentry);
 		ptentry = pte_wrprotect(ptentry);
 		*pte = ptentry;
 	}
-	printk("HW5: do_pte_trace, pte_count = %d\n", pte_count);
+//	printk("HW5: do_pte_trace, pte_count = %d\n", pte_count);
 	
 }
 
@@ -2527,14 +2579,26 @@ static void clean_traced_mm(void)
 	struct list_head *del_ptr;
 
 	list_ptr = traced_mm_list.next;
-	if(list_ptr == &traced_mm_list) {
+	if(list_ptr == &traced_mm_list || list_empty(&traced_mm_list)) {
 		return;
 	}
 	curr = list_entry(list_ptr, traced_mm_t, list);
 	
+	if(curr == NULL)
+	{
+	    printk("clean_traced_mm.  curr is null");
+	    return;
+	}
+
 	/* free traced_mm_list */
 	while (list_ptr != &traced_mm_list)
 	{
+		if(curr == NULL)
+		{
+		    printk("clean_traced_mm.  curr is null");
+	    		return;
+		}
+
 		if(curr->tgid != current->tgid)
 		{
 		    list_ptr = list_ptr->next;
@@ -2546,7 +2610,9 @@ static void clean_traced_mm(void)
 		del_ptr = list_ptr;
 		list_ptr = list_ptr->next;
 		
+		write_lock(&listlock);
 		list_del(del_ptr);
+		write_unlock(&listlock);
 		kfree(curr);
 		
 		if (list_ptr != &traced_mm_list)
@@ -2578,16 +2644,16 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	int counter;
 	unsigned long start_page = start >> PAGE_SHIFT;
 	unsigned long end_page = (start + size) >> PAGE_SHIFT;
-	unsigned long num_pages = end_page - start_page;
+	int num_pages = end_page - start_page;
 	unsigned long i = start;
 	pte_t ptentry;
-	pte_t *pte = NULL;
-	task_t *group_leader = NULL;
-	task_t *cur_thread = NULL;
-	traced_mm_t *temp = NULL;
-	pgd_t *pgd = NULL;
-	pmd_t *pmd = NULL;
-	pud_t *pud = NULL;
+	pte_t *pte;
+	task_t *group_leader;
+	task_t *cur_thread;
+	traced_mm_t *temp;
+	pgd_t *pgd;
+	pmd_t *pmd;
+	pud_t *pud;
 	/* error checking ... */
 	int pte_count = 0;
 	printk("HW5: test\n");
@@ -2600,23 +2666,26 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	group_leader->trace_end = (start + size);
 	cur_thread = group_leader;
 	
-	if(group_leader->mm == NULL) { /* error */ }
-	temp = (traced_mm_t *)kmalloc(sizeof(traced_mm_t), GFP_KERNEL);
+	if(group_leader->mm == NULL) { return -EINVAL;}
+	temp = (traced_mm_t *)kmalloc(sizeof(traced_mm_t), GFP_ATOMIC);
 	/* check kmalloc */
 	if(temp==NULL) { return -ENOMEM; }
 	/* else */
 	temp->mm = group_leader->mm;
 	temp->tgid = group_leader->tgid;
-	INIT_LIST_HEAD(& (*temp).list);
+	INIT_LIST_HEAD(& temp->list);
 
+	write_lock(&listlock);
 	list_add_tail(& temp->list, &traced_mm_list);
-	
+	write_unlock(&listlock);
+
 	/* initialize counts[] based on addr range */
 	/* size / PAGE_SIZE ? */
+	read_lock(&tasklist_lock);
 	do {
 
 		if(! cur_thread->wcount) {
-			cur_thread->wcount = (int *)kmalloc(num_pages, GFP_KERNEL);
+		cur_thread->wcount = (int *)kmalloc(num_pages, GFP_ATOMIC);
 		
 		}
 		if(cur_thread->wcount == NULL) {
@@ -2624,15 +2693,17 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 			/* cleanup? */
 			return -ENOMEM;
 		}
-		printk("HW5: start_trace, successfully allocated wcount for %lu pages\n", num_pages);
+		printk("HW5: start_trace, successfully allocated wcount for %d pages\n", num_pages);
 		/* memset(cur_thread->wcount, '0', num_pages); */
 		for(counter = 0; counter < num_pages; ++counter) {
 			cur_thread->wcount[counter] = 0;
 		}
 		
 		cur_thread = next_thread(cur_thread);
+		if(cur_thread == NULL)
+		    return -EINVAL;
 	}while(cur_thread != group_leader);
-	
+	read_unlock(&tasklist_lock);
 	
 	/* foreach address in range */
 	for(i = start; i < start+size; i += PAGE_SIZE) {
@@ -2643,10 +2714,13 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 		
 		/* get pte_t */
 		/*pte = pte_offset_map(pmd_offset(pud_offset(pgd_offset(cur_thread->mm), i), i), i);*/
-			
+		spin_lock(&group_leader->mm->page_table_lock);
+	
+
 		pgd = pgd_offset(cur_thread->mm, i);
 		if(pgd_none(*pgd)) {
 			printk("HW5: start_trace, pgd_none\n");
+			spin_unlock(&group_leader->mm->page_table_lock);
 			continue;
 			/* clean_traced_mm(); // clean function */
 			/* clean_wcount();// clean wcount */
@@ -2657,6 +2731,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 		pud = pud_offset(pgd, i);
 		if(pud_none(*pud)) {
 			printk("HW5: start_trace, pud_none\n");
+			spin_unlock(&group_leader->mm->page_table_lock);
 			continue;
 			/* clean_traced_mm();// clean function */
 			/* clean_wcount();// clean wcount */
@@ -2667,6 +2742,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 		pmd = pmd_offset(pud, i);
 		if(pmd_none(*pmd)) {
 			printk("HW5: start_trace, pmd_none\n");
+			spin_unlock(&group_leader->mm->page_table_lock);
 			continue;
 			/* clean_traced_mm(); */
 			/* clean_wcount(); */
@@ -2674,10 +2750,11 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 			/* return -EBADR; */
 		} /* error! */
 	
-	
-		pte = pte_offset_kernel(pmd, i);
+
+			pte = pte_offset_kernel(pmd, i);
 		if(!pte_present(*pte) || pte_none(*pte)) {
 			printk("HW5: start_trace, pte_none\n");
+			spin_unlock(&group_leader->mm->page_table_lock);
 			continue;
 			/* clean_traced_mm(); */
 			/* clean_wcount(); */
@@ -2692,7 +2769,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 		/* write-protect */
 		ptentry = pte_wrprotect(ptentry);
 		*pte = ptentry;	
-
+		spin_unlock(&group_leader->mm->page_table_lock);
 		/* spin_unlock(& cur_thread->mm->page_table_lock); */
 		printk("HW5: start_trace pte_count = %d\n", pte_count);
 	}
@@ -2747,11 +2824,14 @@ asmlinkage long sys_stop_trace(void)
 			continue;
 		} /* error! */
 			
+
+		spin_lock(&group_leader->mm->page_table_lock);
 		pte = pte_offset_kernel(pmd, i);
 		if(pte_none(*pte)) {
 			/* clean_traced_mm(); */
 			/* clean_wcount(); */
 			/* return -EBADR; */
+		    	spin_unlock(&group_leader->mm->page_table_lock);
 			continue;
 		} /* error! */
 		    
@@ -2761,6 +2841,7 @@ asmlinkage long sys_stop_trace(void)
 		/* allow write */
 		pte_mkwrite(ptentry);
 		*pte = ptentry;
+		spin_unlock(&group_leader->mm->page_table_lock);
 	}
 	/* spin_unlock(& cur_thread->mm->page_table_lock); */
 
