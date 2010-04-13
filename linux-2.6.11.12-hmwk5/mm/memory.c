@@ -2570,7 +2570,7 @@ struct page * kdb_follow_page(struct mm_struct *mm, unsigned long address, int w
 	return page;
 }
 #endif
-
+/* OS HW5 */
 static void clean_traced_mm(void)
 {
 	traced_mm_t *curr;
