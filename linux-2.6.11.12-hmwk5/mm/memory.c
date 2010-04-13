@@ -1363,6 +1363,7 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 //	}
 
     	pte_t ptentry;
+	int pte_count;
 	task_t * task = current;
 	task_t * leader = task->group_leader;
 	unsigned long start, end;
@@ -1372,8 +1373,9 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 	end = leader->trace_end;
 	count = task->wcount;
 	
-	int pte_count = 0;
-	
+	pte_count = 0;
+
+
 	/* check if pte is present */
 	if(!pte_present(*pte)) {
 		printk("HW5: do_trace, !pte_present\n");
@@ -1402,8 +1404,15 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 		/* increase the count in task_struct */
         	//_index = start - addr;
 		//index = _index/PAGE_SIZE;
+
+		if(count == NULL)
+		{
+		    printk("count for this task was null");
+		    return;
+		}
+
 		index = (int)((addr >> PAGE_SHIFT) - (start >> PAGE_SHIFT));
-		++count[index];
+		count[index]++;
 		printk("HW5: do_trace, increment count of index %d to %d\n", index, count[index]);
 	}
 	else {
@@ -2515,6 +2524,7 @@ static void clean_traced_mm(void)
 	traced_mm_t *curr;
 	traced_mm_t *next;
 	struct list_head *list_ptr;
+	struct list_head *del_ptr;
 
 	list_ptr = traced_mm_list.next;
 	if(list_ptr == &traced_mm_list) {
@@ -2533,9 +2543,10 @@ static void clean_traced_mm(void)
 		    continue;
 		}
 
+		del_ptr = list_ptr;
 		list_ptr = list_ptr->next;
 		
-		list_del(list_ptr->prev);
+		list_del(del_ptr);
 		kfree(curr);
 		
 		if (list_ptr != &traced_mm_list)
@@ -2547,6 +2558,7 @@ static void clean_traced_mm(void)
 }
 
 /* HW5: clean wcount */
+/*
 static void clean_wcount(void) {
 	task_t *group_leader = current->group_leader;
 	task_t *current_task = current;
@@ -2558,7 +2570,7 @@ static void clean_wcount(void) {
 	}while(current_task != group_leader);
 	// clean wcount
 }
-
+*/
 /* HW5: system call sys_get_trace
  * 'start' and 'size' specify the range of trace */
 asmlinkage long sys_start_trace(unsigned long start, size_t size)
