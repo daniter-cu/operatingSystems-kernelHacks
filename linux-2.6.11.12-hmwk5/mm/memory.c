@@ -1290,6 +1290,8 @@ void pte_protect_tick(void)
 	if(list_ptr == &traced_mm_list)
 	    return;
 
+
+	//comment
 	curr_traced_mm = list_entry(list_ptr, traced_mm_t, list);
 
 	while(list_ptr != &traced_mm_list) {
