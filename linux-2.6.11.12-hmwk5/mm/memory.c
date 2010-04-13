@@ -1402,7 +1402,7 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
                  /* increase the count in task_struct */
         	//_index = start - addr;
 		//index = _index/PAGE_SIZE;
-		index = (addr >> PAGE_SHIFT) - (start >> PAGE_SHIFT);
+		index = (int)((addr >> PAGE_SHIFT) - (start >> PAGE_SHIFT));
 		++count[index];
 	}
          else {
@@ -2559,10 +2559,10 @@ static void clean_wcount(void) {
  * 'start' and 'size' specify the range of trace */
 asmlinkage long sys_start_trace(unsigned long start, size_t size)
 {
-	unsigned long long start_page = start >> PAGE_SHIFT;
-	unsigned long long end_page = (start + size) >> PAGE_SHIFT;
-	unsigned long long num_pages = end_page - start_page;
-	unsigned long long i = start;
+	unsigned long start_page = start >> PAGE_SHIFT;
+	unsigned long end_page = (start + size) >> PAGE_SHIFT;
+	unsigned long num_pages = end_page - start_page;
+	unsigned long i = start;
 	pte_t ptentry;
 	pte_t *pte = NULL;
 	task_t *group_leader = NULL;
@@ -2574,13 +2574,13 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	/* error checking ... */
 	int pte_count = 0;
 	printk("HW5: test\n");
-	printk("HW5: start_trace, start_page = %llu, end_page = %llu\n", start_page, end_page);
+	printk("HW5: start_trace, start_page = %lu, end_page = %lu\n", start_page, end_page);
 	
 	/* get thread group leader task_struct */
 	group_leader = current->group_leader;
 		/* store addr range */
 	group_leader->trace_start = start;
-	group_leader->trace_end = start + size;
+	group_leader->trace_end = (start + size);
 	cur_thread = group_leader;
 	
 	if(group_leader->mm == NULL) { /* error */ }
@@ -2613,7 +2613,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	
 	/* foreach address in range */
 	for(i = start; i < start+size; i += PAGE_SIZE) {
-		printk("HW5: start_trace, for-loop i = %llu\n", i);
+		printk("HW5: start_trace, for-loop i = %lu\n", i);
 		cur_thread = group_leader;
 
 		/* spin_lock(& cur_thread->mm->page_table_lock); */
