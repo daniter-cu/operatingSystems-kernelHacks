@@ -1390,32 +1390,32 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 		printk("HW5: do_trace, range\n");
 		return;
 	}
-
-         if (write_access) {
+	
+	if (write_access) {
 		
-		 ++pte_count;
-                 /* set pte to be traced and unprotected*/
+		++pte_count;
+		/* set pte to be traced and unprotected*/
 		ptentry = *pte;
 		ptentry = pte_mktraced(ptentry);
 		ptentry = pte_mkwrite(ptentry);
 		*pte = ptentry;	
-                 /* increase the count in task_struct */
+		/* increase the count in task_struct */
         	//_index = start - addr;
 		//index = _index/PAGE_SIZE;
 		index = (addr >> PAGE_SHIFT) - (start >> PAGE_SHIFT);
 		++count[index];
 		printk("HW5: do_trace, increment count of index %d to %d\n", index, count[index]);
 	}
-         else {
-		 printk("HW5: do_trace, !write_access -> pte_mktraced, pte_wrprotect\n");
-                 /* set pte to be traced and protected */
-		 ptentry = *pte;
+	else {
+		printk("HW5: do_trace, !write_access -> pte_mktraced, pte_wrprotect\n");
+		/* set pte to be traced and protected */
+		ptentry = *pte;
 		ptentry = pte_mktraced(ptentry);
 		ptentry = pte_wrprotect(ptentry);
 		*pte = ptentry;
-         }
-	 printk("HW5: do_pte_trace, pte_count = %d\n", pte_count);
-
+	}
+	printk("HW5: do_pte_trace, pte_count = %d\n", pte_count);
+	
 }
 
 /*
@@ -2517,6 +2517,9 @@ static void clean_traced_mm(void)
 	struct list_head *list_ptr;
 
 	list_ptr = traced_mm_list.next;
+	if(list_ptr == &traced_mm_list) {
+		return;
+	}
 	curr = list_entry(list_ptr, traced_mm_t, list);
 	
 	/* free traced_mm_list */
@@ -2691,6 +2694,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 asmlinkage long sys_stop_trace(void)
 {
 	unsigned long i, start, end;
+	pte_t ptentry;
 	pte_t *pte;
 	pgd_t *pgd;
 	pmd_t *pmd;
@@ -2739,10 +2743,12 @@ asmlinkage long sys_stop_trace(void)
 			continue;
 		} /* error! */
 		    
+		ptentry = *pte;
 		/* reset traced bit */
-		pte_mkuntraced(*pte);
+		pte_mkuntraced(ptentry);
 		/* allow write */
-		pte_mkwrite(*pte);
+		pte_mkwrite(ptentry);
+		*pte = ptentry;
 	}
 	/* spin_unlock(& cur_thread->mm->page_table_lock); */
 
