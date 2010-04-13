@@ -2563,6 +2563,7 @@ static void clean_wcount(void) {
  * 'start' and 'size' specify the range of trace */
 asmlinkage long sys_start_trace(unsigned long start, size_t size)
 {
+	int counter;
 	unsigned long start_page = start >> PAGE_SHIFT;
 	unsigned long end_page = (start + size) >> PAGE_SHIFT;
 	unsigned long num_pages = end_page - start_page;
@@ -2611,7 +2612,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 			/* cleanup? */
 			return -ENOMEM;
 		}
-		printk("HW5: start_trace, successfully allocated wcount for %llu pages\n", num_pages);
+		printk("HW5: start_trace, successfully allocated wcount for %lu pages\n", num_pages);
 		/* memset(cur_thread->wcount, '0', num_pages); */
 		for(counter = 0; counter < num_pages; ++counter) {
 			cur_thread->wcount[counter] = 0;
