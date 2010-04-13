@@ -1301,7 +1301,7 @@ void pte_protect_tick(void)
 		mm = curr_traced_mm->mm;
 		/* spin_lock(& mm->page_table_lock); */
 		
-		for(i = start; i < end; i += PAGE_SIZE) {
+		for(i = start; i <= end; i += PAGE_SIZE) {
 			/* printk("HW5: protect_tick, i = %lu\n", i); */
 			if(pgd_none(* mm->pgd)) { 
 				/* printk("HW5: protect_tick, pgd_none\n"); */
@@ -1386,13 +1386,13 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 	}
 	
 	/* recheck some attribute and range */
-	if(addr < start || addr > end) {
+	if(start < 0 || end < 0 || addr < start || addr > end) {
 		printk("HW5: do_trace, range\n");
 		return;
 	}
 
          if (write_access) {
-		 printk("HW5: do_trace, pte_mktraced and pte_mkwrite, increment count\n");
+		
 		 ++pte_count;
                  /* set pte to be traced and unprotected*/
 		ptentry = *pte;
@@ -1404,6 +1404,7 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 		//index = _index/PAGE_SIZE;
 		index = (int)((addr >> PAGE_SHIFT) - (start >> PAGE_SHIFT));
 		++count[index];
+		printk("HW5: do_trace, increment count of index %d to %d\n", index, count[index]);
 	}
          else {
 		 printk("HW5: do_trace, !write_access -> pte_mktraced, pte_wrprotect\n");
@@ -2600,13 +2601,19 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 
 		if(! cur_thread->wcount) {
 			cur_thread->wcount = (int *)kmalloc(num_pages, GFP_KERNEL);
+		
 		}
 		if(cur_thread->wcount == NULL) {
 			/* kmalloc error */
 			/* cleanup? */
 			return -ENOMEM;
 		}
-		memset(cur_thread->wcount, '\0', num_pages);
+		printk("HW5: start_trace, successfully allocated wcount for %llu pages\n", num_pages);
+		/* memset(cur_thread->wcount, '0', num_pages); */
+		for(counter = 0; counter < num_pages; ++counter) {
+			cur_thread->wcount[counter] = 0;
+		}
+		
 		cur_thread = next_thread(cur_thread);
 	}while(cur_thread != group_leader);
 	
@@ -2751,13 +2758,19 @@ asmlinkage long sys_get_trace(pid_t tid, int *wcount)
 	int *count;
 	int size;
 	unsigned long ret;
-	
+	int counter;
 	task = find_task_by_pid(tid);
 	leader = task->group_leader;
 	count = task->wcount;
 	size = (leader->trace_end >> PAGE_SHIFT) - (leader->trace_start >> PAGE_SHIFT);
-	ret = copy_to_user(wcount, count, size);
-	
+	printk("HW5: get_trace, size of wcount = %d\n", size);
+	ret = copy_to_user(wcount, count, size*sizeof(int));
+	for(counter = 0; counter < size; ++counter) {
+		printk("HW5: get_trace, count[%d] = %d\n", counter, count[counter]);
+	}
+	for(counter = 0; counter < size; ++counter) {
+		printk("HW5: get_trace, userspace wcount[%d] = %d\n", counter, wcount[counter]);
+	}
 	if(ret > 0)
 	    return -EIO;
 	else
