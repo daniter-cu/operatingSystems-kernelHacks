@@ -1417,17 +1417,6 @@ void pte_protect_tick(void)
 static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 			 unsigned long addr, int write_access)
 {
-	/* check if pte is present */
-	/* if pte is not traced but protected, leave it alone */
-	/* recheck some attribute and range */
-	//if (write_access) {
-		/* set pte to be traced and unprotected*/
-		/* increase the count in task_struct */
-	//}
-//	else {
-		/* set pte to be traced and protected */
-//	}
-
     	pte_t ptentry;
 	int pte_count, i;
 	task_t * task = current;
@@ -2732,12 +2721,13 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	write_unlock(&listlock);
 	
 	/* initialize counts[] based on addr range */
-	/* size / PAGE_SIZE ? */
+	
 	read_lock(&tasklist_lock);
+	/* for each thread in group */
 	do {
-
+		/* allocate wcount if not already allocated */
 		if(! cur_thread->wcount) {
-		cur_thread->wcount = (int *)kmalloc(num_pages*sizeof(int) , GFP_ATOMIC);
+			cur_thread->wcount = (int *)kmalloc(num_pages*sizeof(int) , GFP_ATOMIC);
 		
 		}
 		if(cur_thread->wcount == NULL) {
@@ -2747,7 +2737,8 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 			return -ENOMEM;
 		}
 		printk("HW5: start_trace, successfully allocated wcount for %d pages\n", num_pages);
-		/* memset(cur_thread->wcount, '0', num_pages); */
+	
+		/* zero out */
 		for(counter = 0; counter < num_pages; ++counter) {
 			cur_thread->wcount[counter] = 0;
 		}
@@ -2766,10 +2757,9 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 		printk("HW5: start_trace, for-loop i = %lu\n", i);
 		cur_thread = group_leader;
 
-		/* spin_lock(& cur_thread->mm->page_table_lock); */
-		
+			
 		/* get pte_t */
-		/*pte = pte_offset_map(pmd_offset(pud_offset(pgd_offset(cur_thread->mm), i), i), i);*/
+	
 		spin_lock(&group_leader->mm->page_table_lock);
 	
 
@@ -2949,7 +2939,9 @@ asmlinkage long sys_get_trace(pid_t tid, int *wcount)
 	}
 	size = (leader->trace_end >> PAGE_SHIFT) - (leader->trace_start >> PAGE_SHIFT);
 	printk("HW5: get_trace, size of wcount = %d\n", size);
+	/* copy wcounts for calling thread to userspace */
 	ret = copy_to_user(wcount, count, (size+1)*sizeof(int));
+	/* debug printing */
 	for(counter = 0; counter < size; ++counter) {
 		printk("HW5: get_trace, count[%d] = %d\n", counter, count[counter]);
 	}
