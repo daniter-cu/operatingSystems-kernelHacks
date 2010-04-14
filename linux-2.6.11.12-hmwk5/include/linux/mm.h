@@ -43,6 +43,8 @@ extern int sysctl_legacy_va_layout;
 
 #define nth_page(page,n) pfn_to_page(page_to_pfn((page)) + (n))
 
+void pte_protect_tick(void);
+
 /*
  * Linux kernel virtual memory manager primitives.
  * The idea being to have a "virtual" mm in the same way

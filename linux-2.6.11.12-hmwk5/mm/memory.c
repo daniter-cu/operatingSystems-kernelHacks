@@ -2696,7 +2696,13 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	pud_t *pud;
 	/* error checking ... */
 	int pte_count = 0;
-	printk("HW5: test\n");
+	printk("HW5: start_trace, start_calls 1 == %d\n", current->group_leader->start_calls);
+	if((current->group_leader->start_calls) == 1) {
+		printk("HW5: start_trace, start_calls > 0, returning -EINVAL\n");
+		return -EINVAL;
+	}
+	(current->group_leader->start_calls) = 1;
+	printk("HW5: start_trace, start_calls 2 == %d\n", current->group_leader->start_calls);
 	printk("HW5: start_trace, start_page = %lu, end_page = %lu\n", start_page, end_page);
 	
 	/* get thread group leader task_struct */
@@ -2835,7 +2841,15 @@ asmlinkage long sys_stop_trace(void)
 	pgd_t *pgd;
 	pmd_t *pmd;
 	pud_t *pud;
+	task_t *leader;
+	task_t *cur;
+	read_lock(&tasklist_lock);
+	leader = current->group_leader;
+	cur = leader;
+	read_unlock(&tasklist_lock);
 
+	if(current->group_leader->start_calls == 0) return -EINVAL;
+	(current->group_leader->start_calls) = 0;
 
 	task_t *group_leader = current->group_leader;
 	task_t *cur_thread = group_leader;
@@ -2893,6 +2907,16 @@ asmlinkage long sys_stop_trace(void)
 	/* spin_unlock(& cur_thread->mm->page_table_lock); */
 
 	clean_traced_mm();
+	do {
+		/* stuff */
+		read_lock(&tasklist_lock);
+		if(cur->wcount != NULL) {
+			kfree(cur->wcount);
+		}
+		read_unlock(&tasklist_lock);
+		cur = next_thread(cur);
+			
+	}while(cur != group_leader);
 	return 0;
 }
 
@@ -2906,6 +2930,9 @@ asmlinkage long sys_get_trace(pid_t tid, int *wcount)
 	int size;
 	unsigned long ret;
 	int counter;
+
+	if(current->group_leader->start_calls==0) return -EINVAL;
+
 	task = find_task_by_pid(tid);
 	if(task == NULL)
 	    return -ESRCH;
