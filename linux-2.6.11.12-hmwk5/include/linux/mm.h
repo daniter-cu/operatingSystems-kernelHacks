@@ -115,6 +115,10 @@ struct vm_area_struct {
 #endif
 };
 
+void pte_protect_tick(void);
+
+
+
 /*
  * This struct defines the per-mm list of VMAs for uClinux. If CONFIG_MMU is
  * disabled, then there's a single shared list of VMAs maintained by the
