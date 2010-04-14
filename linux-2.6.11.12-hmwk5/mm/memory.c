@@ -2843,19 +2843,20 @@ asmlinkage long sys_stop_trace(void)
 	pud_t *pud;
 	task_t *leader;
 	task_t *cur;
-	read_lock(&tasklist_lock);
+	read_lock(&tasklist_lock);		/* grab read lock for task list */
 	leader = current->group_leader;
 	cur = leader;
-	read_unlock(&tasklist_lock);
+	read_unlock(&tasklist_lock);		/* release read lock for task list */
 
-	if(current->group_leader->start_calls == 0) return -EINVAL;
-	(current->group_leader->start_calls) = 0;
+	if(current->group_leader->start_calls == 0) 	/* must call stop trace before start trace */OB
+	    return -EINVAL;
+	current->group_leader->start_calls = 0;		/* set a bit for checking whether start_trace is called twice */
 
 	task_t *group_leader = current->group_leader;
 	task_t *cur_thread = group_leader;
 
-	start = group_leader->trace_start;
-	end = group_leader->trace_end;
+	start = group_leader->trace_start;		/* set start to the start address supplied the user */
+	end = group_leader->trace_end;			/* set end to start + size */
 
 	/* spin_lock(& cur_thread->mm->page_table_lock); */
 	for (i = start; i < end; i += PAGE_SIZE)
@@ -2863,25 +2864,16 @@ asmlinkage long sys_stop_trace(void)
 		    
 		pgd = pgd_offset(cur_thread->mm, i);
 		if(pgd_none(*pgd)) {
-			/* clean_traced_mm(); */// clean function
-			/* clean_wcount();// clean wcount */
-			/* return -EBADR; */
 			continue;
 		}/* error!! */
 			
 		pud = pud_offset(pgd, i);
 		if(pud_none(*pud)) {
-			/* clean_traced_mm(); */// clean function
-			/* clean_wcount();// clean wcount */
-			/* return -EBADR; */
 			continue;
 		} /* error! */
 			
 		pmd = pmd_offset(pud, i);
 		if(pmd_none(*pmd)) {
-			/* clean_traced_mm(); */
-			/* clean_wcount(); */
-			/* return -EBADR; */
 			continue;
 		} /* error! */
 			
@@ -2889,20 +2881,17 @@ asmlinkage long sys_stop_trace(void)
 		spin_lock(&group_leader->mm->page_table_lock);
 		pte = pte_offset_kernel(pmd, i);
 		if(pte_none(*pte) || !pte_present(*pte)) {
-			/* clean_traced_mm(); */
-			/* clean_wcount(); */
-			/* return -EBADR; */
 		    	spin_unlock(&group_leader->mm->page_table_lock);
 			continue;
 		} /* error! */
 		    
 		ptentry = *pte;
 		/* reset traced bit */
-		pte_mkuntraced(ptentry);
+		pte_mkuntraced(ptentry);	/* reset trace bit to normal */
 		/* allow write */
-		pte_mkwrite(ptentry);
+		pte_mkwrite(ptentry);		/* allow task to be written to, i.e. take protection off */
 		*pte = ptentry;
-		spin_unlock(&group_leader->mm->page_table_lock);
+		spin_unlock(&group_leader->mm->page_table_lock);	/* release lock page table lock */
 	}
 	/* spin_unlock(& cur_thread->mm->page_table_lock); */
 
@@ -2910,13 +2899,13 @@ asmlinkage long sys_stop_trace(void)
 	do {
 		/* stuff */
 		read_lock(&tasklist_lock);
-		if(cur->wcount != NULL) {
+		if(cur->wcount != NULL) {	/* free wcount at the end of stop trace */
 			kfree(cur->wcount);
 		}
 		read_unlock(&tasklist_lock);
 		cur = next_thread(cur);
 			
-	}while(cur != group_leader);
+	}while(cur != group_leader);		/* continue until we looped through all tasks */
 	return 0;
 }
 
