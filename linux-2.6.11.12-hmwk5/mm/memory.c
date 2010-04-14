@@ -1261,8 +1261,6 @@ struct traced_mm {
 	struct list_head list;
 	struct mm_struct *mm;
 	pid_t tgid;
-	pid_t pid;
-	int ref;
 };
 typedef struct traced_mm traced_mm_t;
 
@@ -1431,13 +1429,17 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 	int pte_count;
 	task_t * task = current;
 	task_t * leader = task->group_leader;
-	unsigned long start, end;
-	int index;
+	unsigned long start, end, start_page, end_page;
+	int index, num_pages;
 	int* count;
 	start = leader->trace_start;
 	end = leader->trace_end;
 	count = task->wcount;
-	
+
+	start_page = start >> PAGE_SHIFT;
+	end_page = end >> PAGE_SHIFT;
+	num_pages = end_page - start_page;
+
 	pte_count = 0;
 
 
@@ -1473,7 +1475,12 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 
 		if(count == NULL)
 		{
-			
+			count = (int *)kmalloc(num_pages*sizeof(int), GFP_ATOMIC);
+
+			if(count == NULL)
+			{
+			    printk("malloc failed for do_pte_trace.");
+			}
 
 		   //ignore below code.  It was used in first
 		   //iteration of coding. 
@@ -1483,6 +1490,7 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 
 		index = (int)((addr >> PAGE_SHIFT) - (start >> PAGE_SHIFT));
 		count[index]++;
+		printk("HW5: increment counter of pid : %d to %d\n", (int)(current->pid), count[index]);
 	//	printk("HW5: do_trace, increment count of index %d to %d\n", index, count[index]);
 	}
 	else {
@@ -2699,7 +2707,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	temp->mm = group_leader->mm;
 	temp->tgid = group_leader->tgid;
 	//pid will hold pid of current thread
-	temp->pid = current->pid;
+	//temp->pid = current->pid;
 	INIT_LIST_HEAD(& temp->list);
 
 	write_lock(&listlock);
