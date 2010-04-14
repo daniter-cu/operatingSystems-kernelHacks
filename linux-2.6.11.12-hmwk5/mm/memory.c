@@ -1288,13 +1288,15 @@ void pte_protect_tick(void)
 	struct mm_struct *mm;
 	struct list_head *list_ptr;
 
-	/* printk("HW5: pte_protect_tick called\n"); */
+	//lock on global list must be initialized.  This makes sure it
+	//doesn not happen more than once.
 	if(listlockcount ==0)
 	{
 	    rwlock_init(&listlock);
 	    listlockcount = 1;
 	}
 	
+	//read lock on the global list and check if empty
 	read_lock(&listlock);
 	if(list_empty(&traced_mm_list))
 	{
@@ -1304,12 +1306,14 @@ void pte_protect_tick(void)
 
 	list_ptr = traced_mm_list.next;
 
+	//double check list is empty
 	if(list_ptr == &traced_mm_list)
 	{
 	    read_unlock(&listlock);
 	    return;
 	}
 
+	//grab the entry in traced_mm_list
 	curr_traced_mm = list_entry(list_ptr, traced_mm_t, list);
 	if(curr_traced_mm == NULL)
 	{
@@ -1317,6 +1321,11 @@ void pte_protect_tick(void)
 	    return;
 	}
 
+	/*
+	 * For each mm_stuct in traced_mm_list, go through all
+	 * addresses in range and set write protection.
+	 * This function must be called in scheduler_tick()
+	 */
 	while(list_ptr != &traced_mm_list) {
 	    	read_lock(&tasklist_lock);
 		cur_task = find_task_by_pid(curr_traced_mm->tgid);
@@ -1346,44 +1355,40 @@ void pte_protect_tick(void)
 		    read_unlock(&listlock);
 		    return;
 		}
-		/* spin_lock(& mm->page_table_lock); */
 		
+		/*
+		 * For loop to modify pte for each address in range
+		 */
 		for(i = start; i < end; i += PAGE_SIZE) {
 
-		    
+		    //grab page_table_lock, if possible
 			if(!spin_trylock(&mm->page_table_lock))
 			{
 			    read_unlock(&listlock);
 			    return;
 			}
 
-		    /* printk("HW5: protect_tick, i = %lu\n", i); */
 			if(pgd_none(* mm->pgd)) { 
-				/* printk("HW5: protect_tick, pgd_none\n"); */
 				spin_unlock(&mm->page_table_lock);
 				continue;
 			}
 			pud = pud_offset(mm->pgd,i);
 			if(pud_none(*pud)) { 
 				spin_unlock(&mm->page_table_lock);
-			    /* printk("HW5: protect_tick, pud_none\n"); */
 				continue;
 			}
 			pmd = pmd_offset(pud,i);
 			if(pmd_none(*pmd)) {
 				spin_unlock(&mm->page_table_lock);
-				/* printk("HW5: protect_tick, pmd_none\n"); */
 				continue;
 			}
 			pte = pte_offset_kernel(pmd,i);
 			if(pte_none(*pte) || !pte_present(*pte)) {
-				/* printk("HW5: protect_tick, pte_none\n") */;
 				spin_unlock(&mm->page_table_lock);
 				continue;
 			}
 
 			if(pte_traced(*pte)) {
-				/* printk("HW5: protect_tick, protected a pte\n"); */
 				ptentry = *pte;
 			    	ptentry = pte_wrprotect(ptentry);
 				*pte = ptentry;
@@ -1391,10 +1396,11 @@ void pte_protect_tick(void)
 			spin_unlock(&mm->page_table_lock);
 		}
 		
-		/* spin_unlock(& mm->page_table_lock); */
 		if(list_ptr == NULL || list_ptr->next == NULL)
 		    return;
-		
+	
+		//increment listpoint to next element in list.
+		//check that cycle has not been made.
 		list_ptr = list_ptr->next;
 		if(list_ptr != &traced_mm_list) {
 			curr_traced_mm = list_entry(list_ptr, traced_mm_t, list);
@@ -1404,9 +1410,6 @@ void pte_protect_tick(void)
 	}	
 
 	read_unlock(&listlock);
-	/* check the traced_mm_list */
-	/* for every traced memory space */
-		/* reprotect the traced range */
 }
 
 /* HW5: do_pte_trace 
@@ -2833,20 +2836,24 @@ asmlinkage long sys_stop_trace(void)
 	pud_t *pud;
 	task_t *leader;
 	task_t *cur;
+
 	task_t *group_leader = current->group_leader;
 	task_t *cur_thread = group_leader;
-	read_lock(&tasklist_lock);
+
+	read_lock(&tasklist_lock);		/* grab read lock for task list */
+
 	leader = current->group_leader;
 	cur = leader;
-	read_unlock(&tasklist_lock);
+	read_unlock(&tasklist_lock);		/* release read lock for task list */
 
-	if(current->group_leader->start_calls == 0) return -EINVAL;
-	(current->group_leader->start_calls) = 0;
-
-
-
-	start = group_leader->trace_start;
-	end = group_leader->trace_end;
+	if(current->group_leader->start_calls == 0) 	/* must call stop trace before start trace */
+		return -EINVAL;
+	current->group_leader->start_calls = 0;		/* set a bit for checking whether start_trace is called twice */
+	
+	
+	
+	start = group_leader->trace_start;		/* set start to the start address supplied the user */
+	end = group_leader->trace_end;			/* set end to start + size */
 
 	/* spin_lock(& cur_thread->mm->page_table_lock); */
 	for (i = start; i < end; i += PAGE_SIZE)
@@ -2854,25 +2861,16 @@ asmlinkage long sys_stop_trace(void)
 		    
 		pgd = pgd_offset(cur_thread->mm, i);
 		if(pgd_none(*pgd)) {
-			/* clean_traced_mm(); */// clean function
-			/* clean_wcount();// clean wcount */
-			/* return -EBADR; */
 			continue;
 		}/* error!! */
 			
 		pud = pud_offset(pgd, i);
 		if(pud_none(*pud)) {
-			/* clean_traced_mm(); */// clean function
-			/* clean_wcount();// clean wcount */
-			/* return -EBADR; */
 			continue;
 		} /* error! */
 			
 		pmd = pmd_offset(pud, i);
 		if(pmd_none(*pmd)) {
-			/* clean_traced_mm(); */
-			/* clean_wcount(); */
-			/* return -EBADR; */
 			continue;
 		} /* error! */
 			
@@ -2880,20 +2878,17 @@ asmlinkage long sys_stop_trace(void)
 		spin_lock(&group_leader->mm->page_table_lock);
 		pte = pte_offset_kernel(pmd, i);
 		if(pte_none(*pte) || !pte_present(*pte)) {
-			/* clean_traced_mm(); */
-			/* clean_wcount(); */
-			/* return -EBADR; */
 		    	spin_unlock(&group_leader->mm->page_table_lock);
 			continue;
 		} /* error! */
 		    
 		ptentry = *pte;
 		/* reset traced bit */
-		pte_mkuntraced(ptentry);
+		pte_mkuntraced(ptentry);	/* reset trace bit to normal */
 		/* allow write */
-		pte_mkwrite(ptentry);
+		pte_mkwrite(ptentry);		/* allow task to be written to, i.e. take protection off */
 		*pte = ptentry;
-		spin_unlock(&group_leader->mm->page_table_lock);
+		spin_unlock(&group_leader->mm->page_table_lock);	/* release lock page table lock */
 	}
 	/* spin_unlock(& cur_thread->mm->page_table_lock); */
 
@@ -2901,13 +2896,13 @@ asmlinkage long sys_stop_trace(void)
 	do {
 		/* stuff */
 		read_lock(&tasklist_lock);
-		if(cur->wcount != NULL) {
+		if(cur->wcount != NULL) {	/* free wcount at the end of stop trace */
 			kfree(cur->wcount);
 		}
 		read_unlock(&tasklist_lock);
 		cur = next_thread(cur);
 			
-	}while(cur != group_leader);
+	}while(cur != group_leader);		/* continue until we looped through all tasks */
 	return 0;
 }
 
