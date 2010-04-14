@@ -1426,7 +1426,7 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 //	}
 
     	pte_t ptentry;
-	int pte_count;
+	int pte_count, i;
 	task_t * task = current;
 	task_t * leader = task->group_leader;
 	unsigned long start, end, start_page, end_page;
@@ -1475,11 +1475,19 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 
 		if(count == NULL)
 		{
-			count = (int *)kmalloc(num_pages*sizeof(int), GFP_ATOMIC);
+			current->wcount = (int *)kmalloc((num_pages+1)*sizeof(int), GFP_ATOMIC);
+			count = current->wcount;
+
+			for(i = 0; i<= num_pages; i++)
+			{
+				count[i] = 0;	
+			}
+
 
 			if(count == NULL)
 			{
 			    printk("malloc failed for do_pte_trace.");
+			    return;
 			}
 
 		   //ignore below code.  It was used in first
@@ -2903,6 +2911,12 @@ asmlinkage long sys_get_trace(pid_t tid, int *wcount)
 	    return -ESRCH;
 	leader = task->group_leader;
 	count = task->wcount;
+
+	if(count == NULL)
+	{
+		printk("HW5: count was never malloced!!!!!!");
+		return -ENOMEM;
+	}
 	size = (leader->trace_end >> PAGE_SHIFT) - (leader->trace_start >> PAGE_SHIFT);
 	printk("HW5: get_trace, size of wcount = %d\n", size);
 	ret = copy_to_user(wcount, count, (size+1)*sizeof(int));
