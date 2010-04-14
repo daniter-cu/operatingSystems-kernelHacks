@@ -1261,6 +1261,8 @@ struct traced_mm {
 	struct list_head list;
 	struct mm_struct *mm;
 	pid_t tgid;
+	pid_t pid;
+	int ref;
 };
 typedef struct traced_mm traced_mm_t;
 
@@ -1471,8 +1473,12 @@ static void do_pte_trace(pte_t *pte, struct vm_area_struct *vma,
 
 		if(count == NULL)
 		{
-		    printk("count for this task was null");
-		    return;
+			
+
+		   //ignore below code.  It was used in first
+		   //iteration of coding. 
+		   // printk("count for this task was null");
+		   // return;
 		}
 
 		index = (int)((addr >> PAGE_SHIFT) - (start >> PAGE_SHIFT));
@@ -2684,6 +2690,7 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	group_leader->trace_end = (start + size);
 	cur_thread = group_leader;
 	
+	
 	if(group_leader->mm == NULL) { return -EINVAL;}
 	temp = (traced_mm_t *)kmalloc(sizeof(traced_mm_t), GFP_ATOMIC);
 	/* check kmalloc */
@@ -2691,19 +2698,21 @@ asmlinkage long sys_start_trace(unsigned long start, size_t size)
 	/* else */
 	temp->mm = group_leader->mm;
 	temp->tgid = group_leader->tgid;
+	//pid will hold pid of current thread
+	temp->pid = current->pid;
 	INIT_LIST_HEAD(& temp->list);
 
 	write_lock(&listlock);
 	list_add_tail(& temp->list, &traced_mm_list);
 	write_unlock(&listlock);
-
+	
 	/* initialize counts[] based on addr range */
 	/* size / PAGE_SIZE ? */
 	read_lock(&tasklist_lock);
 	do {
 
 		if(! cur_thread->wcount) {
-		cur_thread->wcount = (int *)kmalloc(num_pages, GFP_ATOMIC);
+		cur_thread->wcount = (int *)kmalloc(num_pages*sizeof(int) , GFP_ATOMIC);
 		
 		}
 		if(cur_thread->wcount == NULL) {
