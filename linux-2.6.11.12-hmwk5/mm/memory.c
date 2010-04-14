@@ -2833,7 +2833,12 @@ asmlinkage long sys_stop_trace(void)
 	pgd_t *pgd;
 	pmd_t *pmd;
 	pud_t *pud;
-	
+	task_t *leader;
+	task_t *cur;
+	read_lock(&tasklist_lock);
+	leader = current->group_leader;
+	cur = leader;
+	read_unlock(&tasklist_lock);
 
 	if(current->group_leader->start_calls == 0) return -EINVAL;
 	(current->group_leader->start_calls) = 0;
@@ -2894,6 +2899,16 @@ asmlinkage long sys_stop_trace(void)
 	/* spin_unlock(& cur_thread->mm->page_table_lock); */
 
 	clean_traced_mm();
+	do {
+		/* stuff */
+		read_lock(&tasklist_lock);
+		if(cur->wcount != NULL) {
+			kfree(cur->wcount);
+		}
+		read_unlock(&tasklist_lock);
+		cur = next_thread(cur);
+			
+	}while(cur != group_leader);
 	return 0;
 }
 
