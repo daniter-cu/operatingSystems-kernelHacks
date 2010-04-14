@@ -69,6 +69,7 @@ extern struct group_info init_groups;
 /* OS HW5 */
 #define INIT_TASK(tsk)	\
 {									\
+        .start_calls    =  0,                                           \
         .trace_start    = -1,                                           \
 	.trace_end      = -1,                                           \
         .wcount         = NULL,                                         \

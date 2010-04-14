@@ -526,6 +526,7 @@ struct audit_context;		/* See audit.c */
 struct mempolicy;
 
 struct task_struct {
+	int start_calls; /* OS HW5 track start/stop calls */
 	unsigned long trace_start; /* OS HW5 */
 	unsigned long trace_end;
 	int *wcount;
