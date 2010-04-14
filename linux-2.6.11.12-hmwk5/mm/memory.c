@@ -2833,6 +2833,8 @@ asmlinkage long sys_stop_trace(void)
 	pud_t *pud;
 	task_t *leader;
 	task_t *cur;
+	task_t *group_leader = current->group_leader;
+	task_t *cur_thread = group_leader;
 	read_lock(&tasklist_lock);
 	leader = current->group_leader;
 	cur = leader;
@@ -2841,8 +2843,7 @@ asmlinkage long sys_stop_trace(void)
 	if(current->group_leader->start_calls == 0) return -EINVAL;
 	(current->group_leader->start_calls) = 0;
 
-	task_t *group_leader = current->group_leader;
-	task_t *cur_thread = group_leader;
+
 
 	start = group_leader->trace_start;
 	end = group_leader->trace_end;
