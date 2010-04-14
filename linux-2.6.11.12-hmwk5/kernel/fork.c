@@ -1145,7 +1145,10 @@ long do_fork(unsigned long clone_flags,
 	 * Do this prior waking up the new thread - the thread pointer
 	 * might get invalid after that point, if the thread exits quickly.
 	 */
+
+	/* HW5 - Rest wcount to null if new task is created. */
 	p->wcount = NULL;
+
 	if (!IS_ERR(p)) {
 		struct completion vfork;
 

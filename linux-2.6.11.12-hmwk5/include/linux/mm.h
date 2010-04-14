@@ -117,6 +117,8 @@ struct vm_area_struct {
 #endif
 };
 
+
+/* HW5: Declare function in memory.c */
 void pte_protect_tick(void);
 
 
