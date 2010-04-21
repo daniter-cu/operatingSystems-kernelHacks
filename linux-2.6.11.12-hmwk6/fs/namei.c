@@ -703,7 +703,7 @@ int fastcall link_path_walk(const char * name, struct nameidata *nd)
 		struct qstr this;
 		unsigned int c;
 
-		err = exec_permission_lite(inode, nd);
+			err = exec_permission_lite(inode, nd);
 		if (err == -EAGAIN) { 
 			err = permission(inode, MAY_EXEC, nd);
 		}
@@ -712,6 +712,10 @@ int fastcall link_path_walk(const char * name, struct nameidata *nd)
 
 		this.name = name;
 		c = *(const unsigned char *)name;
+
+//		printk("HW6: This file is being accessed: %s\n", this.name);
+
+
 
 		hash = init_name_hash();
 		do {
@@ -1126,6 +1130,9 @@ static inline int may_delete(struct inode *dir,struct dentry *victim,int isdir)
 	if (!victim->d_inode)
 		return -ENOENT;
 
+//	printk("HW6: This file is being deleted %s\n", victim->d_name.name);
+
+
 	BUG_ON(victim->d_parent->d_inode != dir);
 
 	error = permission(dir,MAY_WRITE | MAY_EXEC, NULL);
@@ -1277,6 +1284,9 @@ int may_open(struct nameidata *nd, int acc_mode, int flag)
 	
 	if (S_ISDIR(inode->i_mode) && (flag & FMODE_WRITE))
 		return -EISDIR;
+
+//	printk("HW6: This file is being opened: %s\n", dentry->d_name.name);
+	
 
 	error = permission(inode, acc_mode, nd);
 	if (error)
