@@ -14,64 +14,111 @@
 #define FULL_PERM (S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH)
 
 
-
-/* running a number of memory accesses by setting variables and struct
- * values */
 void *runThread1(void *arg)
 {
-    
+    /* pin the inodes */
+    if (access("tempdir/dir1/f1", R_OK)!=0)
+    {
+	exit(1);
+    }
+
+    sleep(10);
+
     return(void *)0;
 }
 
+void *runThread2(void *arg)
+{
+    if ((remove("tempdir/dir1/f1"))<0)
+    {
+	fprintf(stderr, "%s: remove failed\n", strerror(errno));
+	return (void*)-1;
+    }
 
-/* Stress test.  Create  many threads that all do memory accesses" */
+    return 0;
+}
+
+void *runThread3(void *arg)
+{
+    if ((remove("tempdir/"))<0)
+    {
+	fprintf(stderr, "%s: remove failed\n", strerror(errno));
+	return (void*)-1;
+    }
+
+    return 0;
+}
+
 
 long test1a()
 {
+    pthread_t t1, t2;
 
-	return 0;
+    if (pthread_create(&t1, NULL, runThread1, NULL) == -1)
+    {
+	fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
+	return -1;
+    }
 
+    if (pthread_create(&t2, NULL, runThread2, NULL) == -1)
+    {
+	fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
+	return -1;
+    }
+
+    return 0;
 }
 
-/*
- * This is a regular test with two threads that do many memory
- * accesses.
- */
+
 long test2a()
 {
- 
+    pthread_t t1, t2;
+
+    if (pthread_create(&t1, NULL, runThread1, NULL) == -1)
+    {
+	fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
+	return -1;
+    }
+
+    if (pthread_create(&t2, NULL, runThread3, NULL) == -1)
+    {
+	fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
+	return -1;
+    }
+
 
     return 0;
 }
 
 
-/*
- * This test to see that correct errors are returned on invalid
- * arguments.
- */
 long test3a()
 {
+    pthread_t t1, t2;
 
+    if ((link("tempdir/dir1/f1", "tempdir/dir1/f2")) < 0)
+    {
+	fprintf(stderr, "%s: link failed\n", strerror(errno));
+	return -1;
+    }
+
+    if (pthread_create(&t1, NULL, runThread1, NULL) == -1)
+    {
+	fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
+	return -1;
+    }
+
+    if (pthread_create(&t2, NULL, runThread2, NULL) == -1)
+    {
+	fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
+	return -1;
+    }
     return 0;
 }
 
 
-/*
- * Stress test.  See that tracing works after forks.
- */
-long test4a()
-{
- 
-    return 0;
-}
-
-
-
-
-struct testcase testcase1a = {"1a", "Stress test on many threads doing memory access.", test1a};
-struct testcase testcase2a = {"2a", "Regular use of new system calls.  General Test", test2a};
-struct testcase testcase3a = {"3a", "Test return of system calls when invalid args are passed.", test3a};
-struct testcase testcase4a = {"4a", "Stress test for many processeses making threads that access memory pages.", test4a};
+struct testcase testcase1a = {"1a", "For regular file, one thread accesses and pins while another tries to modify by remove", test1a};
+struct testcase testcase2a = {"2a", "For regular file, one thread accesses and pins while another tries to modify the home", test2a};
+struct testcase testcase3a = {"3a", "For a link, one thread accesses and pins while another tries to modify that link", test3a};
 
 
 struct testcase **testcase;
@@ -80,12 +127,11 @@ void init_testcase()
 {
     int i = 0;
 
-    testcase = malloc(sizeof(struct testcase) * 5);
+    testcase = malloc(sizeof(struct testcase) * 4);
 
     testcase[i++] = &testcase1a;
     testcase[i++] = &testcase2a;
     testcase[i++] = &testcase3a;
-    testcase[i++] = &testcase4a;
     testcase[i++] = NULL; 
 }
 
@@ -99,13 +145,13 @@ void init_directories() {
 		fprintf(stderr, "Error creating tempdir/dir1: %s\n", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
-	if(fd1 = open("tempdir/dir1/f1", O_WRONLY | O_CREAT | O_TRUNC, FULL_PERM) < 0) {
+	if((fd1 = open("tempdir/dir1/f1", O_WRONLY | O_CREAT | O_TRUNC, FULL_PERM)) < 0) {
 		fprintf(stderr, "Error creating file tempdir/dir1/f1: %s\n", strerror(errno));
 	}
 	if(close(fd1)) {
 		fprintf(stderr, "Error closing newly-created file tempdir/dir1/f1: %s\n", strerror(errno));
 	}
-	if(fd2 = open("tempdir/dir1/f2", O_WRONLY | O_CREAT | O_TRUNC, FULL_PERM) < 0) {
+	if((fd2 = open("tempdir/dir1/f2", O_WRONLY | O_CREAT | O_TRUNC, FULL_PERM)) < 0) {
 		fprintf(stderr, "Error creating file tempdir/dir1/f2: %s\n", strerror(errno));
 	}
 	if(close(fd2)) {
