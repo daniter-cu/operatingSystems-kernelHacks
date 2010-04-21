@@ -2399,6 +2399,11 @@ fail:
 	return err;
 }
 
+/* OS HW6 called by timer to unpin inodes */
+void unpin_inode(unsigned long data) {
+	task_t *cur_task = (task_t *)(data);
+}
+
 struct inode_operations page_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= page_follow_link_light,
