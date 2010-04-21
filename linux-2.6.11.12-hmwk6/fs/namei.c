@@ -1147,6 +1147,11 @@ static inline int may_delete(struct inode *dir,struct dentry *victim,int isdir)
 		return -ENOENT;
 	if (victim->d_flags & DCACHE_NFSFS_RENAMED)
 		return -EBUSY;
+
+	/* OS HW6 */
+	/* if not pinned by current process */
+	/* return -EPERM */
+
 	return 0;
 }
 
@@ -1333,6 +1338,11 @@ int may_open(struct nameidata *nd, int acc_mode, int flag)
 	} else
 		if (flag & FMODE_WRITE)
 			DQUOT_INIT(inode);
+
+
+	/* OS HW6 */
+	/* if not pinned by current process */
+	/* return -EPERM */
 
 	return 0;
 }
