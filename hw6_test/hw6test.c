@@ -8,16 +8,10 @@
 #include <pthread.h> 
 #include <string.h> 
 #include <unistd.h> 
-#include <asm-i386/unistd.h>
-#include <sys/wait.h> 
-#include <sys/time.h> 
+#include <fcntl.h>
 #include "test.h"
    
-_syscall2(long, start_trace, unsigned long, start, size_t, size); 
-_syscall0(long, stop_trace); 
-_syscall2(long, get_trace, pid_t, tid, int *, wcounts);   
-_syscall0(long, gettid);
-
+#define FULL_PERM (S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH)
 
 
 
@@ -25,62 +19,7 @@ _syscall0(long, gettid);
  * values */
 void *runThread1(void *arg)
 {
-    int x;
-    int y;
-    int i;
-    int j;
-    struct foo *temp;
-    char *string;
-
-
-    int *wcounts = (int *) malloc(sizeof(int)*5000);
-    if(wcounts == NULL)
-    {	
-	printf("Malloc failed.\n");
-	return  (void *) -1;
-    }
-
-    memset(wcounts, '\0', 5000);
-
-    x = 5; 
-    y = 6;
-    string = "hello, world!\n";
-
-    if (start_trace(pow(2,20), pow(2, 24) ) == -1) { 
-	fprintf(stderr, "%s: start_trace failed\n", strerror(errno));
-	return (void *) -1;
-    }
-
-    for (i = 0; i < 50; i++)
-    {
-	x = x + y;
-    	y = y - i;
-    }
-
-    for(j = 0; j < 50; j++)
-    {
-    	temp->id = 5;
-    	temp->str = string;
-    }
-
-   if (stop_trace() < 0)
-    {
-	fprintf(stderr, "%s: start_trace failed\n", strerror(errno));
-	return (void*) -1;
-    }
-  
-    if (get_trace(gettid(), wcounts) < 0)
-	fprintf(stderr, "%s: get_trace failed\n", strerror(errno));
-
-	
-    for(i = 0; i < 5000; i++)
-    {
-	printf("%d", wcounts[i]);
-    }
-    printf("\n");
-
-
-    free(wcounts);
+    
     return(void *)0;
 }
 
@@ -89,16 +28,8 @@ void *runThread1(void *arg)
 
 long test1a()
 {
-    pthread_t t[100];
 
-    int i;
-    for(i = 0; i< 100; i++)
-    {
-  	if (pthread_create(&t[i], NULL, runThread1, NULL) == -1) {
-		fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
-         }
-    }
-    return 0;
+	return 0;
 
 }
 
@@ -108,18 +39,7 @@ long test1a()
  */
 long test2a()
 {
-    pthread_t t1, t2;
-  
-    if (pthread_create(&t1, NULL, runThread1, NULL) == -1)
-    {
-	fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
-	return -1;
-    }
-    if (pthread_create(&t2, NULL, runThread1, NULL) == -1)
-    {
-	fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
-	return -1;
-    }
+ 
 
     return 0;
 }
@@ -132,30 +52,6 @@ long test2a()
 long test3a()
 {
 
-    if (stop_trace()>=0)
-    {
-	fprintf(stderr, "SHOULD NOT WORK - stop_trace called before start_trace\n");
-	return -1;
-    }
-    if (start_trace(-1, pow(2, 20) + pow(2, 24) ) >= 0) { 
-	fprintf(stderr, "%s\n", "start_trace failed - given a negative start value");
-	return -1;
-    }
-
-    if (start_trace(pow(2,20), -1 ) >= 0) { 
-	fprintf(stderr, "%s\n", "start_trace failed - given a negative size value");
-	return -1;
-    }
-
-    int wcounts[5000];
-
-    if( get_trace(-4, wcounts) >= 0 )
-    {
-	printf("get_trace should not return success on invalid pid.\n");
-	return -1;
-    }
-
-    free(wcounts);
     return 0;
 }
 
@@ -165,27 +61,7 @@ long test3a()
  */
 long test4a()
 {
-    int i;
-    for(i = 0; i < 10; i++)
-    {
-	if(fork() < 0)
-	    return -1;
-	else
-	{
-   	 pthread_t t1, t2;
-  
- 	   if (pthread_create(&t1, NULL, runThread1, NULL) == -1)
-    	{
-		fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
-		return -1;
-    	}
-    	if (pthread_create(&t2, NULL, runThread1, NULL) == -1)
-    	{
-		fprintf(stderr, "%s: pthread_create failed\n", strerror(errno));
-		return -1;
-	}
-	}
-    }
+ 
     return 0;
 }
 
@@ -211,4 +87,33 @@ void init_testcase()
     testcase[i++] = &testcase3a;
     testcase[i++] = &testcase4a;
     testcase[i++] = NULL; 
+}
+
+void init_directories() {
+	int fd1, fd2;
+	if(mkdir("tempdir", FULL_PERM)) {
+		fprintf(stderr, "Error creating tempdir: %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+	if(mkdir("tempdir/dir1", FULL_PERM)) {
+		fprintf(stderr, "Error creating tempdir/dir1: %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+	if(fd1 = open("tempdir/dir1/f1", O_WRONLY | O_CREAT | O_TRUNC, FULL_PERM) < 0) {
+		fprintf(stderr, "Error creating file tempdir/dir1/f1: %s\n", strerror(errno));
+	}
+	if(close(fd1)) {
+		fprintf(stderr, "Error closing newly-created file tempdir/dir1/f1: %s\n", strerror(errno));
+	}
+	if(fd2 = open("tempdir/dir1/f2", O_WRONLY | O_CREAT | O_TRUNC, FULL_PERM) < 0) {
+		fprintf(stderr, "Error creating file tempdir/dir1/f2: %s\n", strerror(errno));
+	}
+	if(close(fd2)) {
+		fprintf(stderr, "Error closing newly-created file tempdir/dir1/f2: %s\n", strerror(errno));
+	}
+	
+}
+
+void remove_directories() {
+	//rm -r tempdir/
 }
