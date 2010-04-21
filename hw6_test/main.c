@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
 		runtest(testcase[testi]);
 	}
     } while (++argi < argc);
-     
+    remove_directories();
     return 0;
 }
 

@@ -16,6 +16,7 @@ struct foo {
 };
 
 void init_directories(void);
+void remove_directories(void);
 
 extern struct testcase **testcase;
 extern void init_testcase(void);

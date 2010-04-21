@@ -147,19 +147,34 @@ void init_directories() {
 	}
 	if((fd1 = open("tempdir/dir1/f1", O_WRONLY | O_CREAT | O_TRUNC, FULL_PERM)) < 0) {
 		fprintf(stderr, "Error creating file tempdir/dir1/f1: %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
 	}
 	if(close(fd1)) {
 		fprintf(stderr, "Error closing newly-created file tempdir/dir1/f1: %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
 	}
 	if((fd2 = open("tempdir/dir1/f2", O_WRONLY | O_CREAT | O_TRUNC, FULL_PERM)) < 0) {
 		fprintf(stderr, "Error creating file tempdir/dir1/f2: %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
 	}
 	if(close(fd2)) {
 		fprintf(stderr, "Error closing newly-created file tempdir/dir1/f2: %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
 	}
 	
 }
 
 void remove_directories() {
-	//rm -r tempdir/
+	if(remove("tempdir/dir1/f1")) {
+		fprintf(stderr, "Error removing tempdir/dir1/f1: %s\n", strerror(errno));
+	}
+	if(remove("tempdir/dir1/f2")) {
+		fprintf(stderr, "Error removing tempdir/dir1/f2: %s\n", strerror(errno));
+	}
+	if(remove("tempdir/dir1/")) {
+		fprintf(stderr, "Error removing tempdir/dir1/: %s\n", strerror(errno));
+	}
+	if(remove("tempdir/")) {
+		fprintf(stderr, "Error removing tempdir/: %s\n", strerror(errno));
+	}
 }
