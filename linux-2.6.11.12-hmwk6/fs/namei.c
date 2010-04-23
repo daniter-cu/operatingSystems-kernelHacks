@@ -673,6 +673,28 @@ fail:
 	return PTR_ERR(dentry);
 }
 
+
+/*
+ * Pin inodes to the correct timer
+ */
+int pin_inode(struct inode *inode, list_timer *timer)
+{
+	pin_t pin = (pin_t *)malloc(sizeof(pin_t));
+	if(!pin)
+	    return -1;
+
+	INIT_LIST_HEAD(pin->vert);
+	INIT_LIST_HEAD(pin->hor);
+	pin->pid = current->pid;
+
+	list_add(pin->vert, timer->pin_list);
+	list_add(pin->hor, inode->pin_list);
+
+}
+
+
+
+
 /*
  * Name resolution.
  *
@@ -687,7 +709,9 @@ int fastcall link_path_walk(const char * name, struct nameidata *nd)
 	struct inode *inode;
 	int err;
 	unsigned int lookup_flags = nd->flags;
-	
+	struct timer_list timer;   //HW6
+	init_timer(&timer);        //HW6
+
 	while (*name=='/')
 		name++;
 	if (!*name)
@@ -715,6 +739,8 @@ int fastcall link_path_walk(const char * name, struct nameidata *nd)
 
 //		printk("HW6: This file is being accessed: %s\n", this.name);
 
+		if(pin_inode(inode, &timer) < 0) //HW6
+			return -ENOMEM;      	 //HW6
 
 
 		hash = init_name_hash();
@@ -875,6 +901,10 @@ return_reval:
 				break;
 		}
 return_base:
+		timer.function = unpin_inode; 	//HW6
+		timer.data = NULL; 		//HW6
+		timer.expires = 20 + jiffies; 	//HW6
+		add_timer(&timer);		//HW6
 		return 0;
 out_dput:
 		dput(next.dentry);
