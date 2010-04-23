@@ -499,9 +499,9 @@ struct inode {
  */
 
 typedef struct {
-struct list_head virt;
-struct list_head hor;
-pid_t pid;
+    struct list_head vert;
+    struct list_head hor;
+    pid_t pid;
 } pin_t;
 
 
