@@ -674,22 +674,32 @@ fail:
 }
 
 
+
+/* OS HW6 called by timer to unpin inodes */
+void unpin_inode(unsigned long a) {
+	//task_t *cur_task = (task_t *)(data);
+}
+
+
+
 /*
  * Pin inodes to the correct timer
  */
-int pin_inode(struct inode *inode, list_timer *timer)
+int pin_inode(struct inode *inode, struct timer_list *timer)
 {
-	pin_t pin = (pin_t *)malloc(sizeof(pin_t));
+    /*
+	pin_t *pin = (pin_t *)kmalloc(sizeof(pin_t), GFP_KERNEL);
 	if(!pin)
 	    return -1;
 
-	INIT_LIST_HEAD(pin->vert);
-	INIT_LIST_HEAD(pin->hor);
+	INIT_LIST_HEAD(&pin->vert);
+	INIT_LIST_HEAD(&pin->hor);
 	pin->pid = current->pid;
 
-	list_add(pin->vert, timer->pin_list);
-	list_add(pin->hor, inode->pin_list);
-
+	list_add(&pin->vert, &timer->pin_list);
+	list_add(&pin->hor, &inode->pin_list);
+*/
+	return 1;
 }
 
 
@@ -902,9 +912,9 @@ return_reval:
 		}
 return_base:
 		timer.function = unpin_inode; 	//HW6
-		timer.data = NULL; 		//HW6
+		timer.data = 0; 		//HW6
 		timer.expires = 20 + jiffies; 	//HW6
-		add_timer(&timer);		//HW6
+		//add_timer(&timer);		//HW6
 		return 0;
 out_dput:
 		dput(next.dentry);
@@ -2429,10 +2439,6 @@ fail:
 	return err;
 }
 
-/* OS HW6 called by timer to unpin inodes */
-void unpin_inode(unsigned long data) {
-	task_t *cur_task = (task_t *)(data);
-}
 
 struct inode_operations page_symlink_inode_operations = {
 	.readlink	= generic_readlink,
