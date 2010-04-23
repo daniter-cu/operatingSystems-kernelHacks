@@ -19,6 +19,7 @@ void *runThread1(void *arg)
     /* pin the inodes */
     if (access("tempdir/dir1/f1", R_OK)!=0)
     {
+	return (void*)-1;
 	exit(1);
     }
 
@@ -29,7 +30,7 @@ void *runThread1(void *arg)
 
 void *runThread2(void *arg)
 {
-    if ((remove("tempdir/dir1/f1"))<0)
+    if ((remove("tempdir/dir1/f1"))>=0)
     {
 	fprintf(stderr, "%s: remove failed\n", strerror(errno));
 	return (void*)-1;
@@ -40,7 +41,7 @@ void *runThread2(void *arg)
 
 void *runThread3(void *arg)
 {
-    if ((remove("tempdir/"))<0)
+    if ((remove("tempdir/"))>=0)
     {
 	fprintf(stderr, "%s: remove failed\n", strerror(errno));
 	return (void*)-1;
