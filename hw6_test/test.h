@@ -15,6 +15,8 @@ struct foo {
     char *str;
 };
 
+void init_directories(void);
+
 extern struct testcase **testcase;
 extern void init_testcase(void);
 extern struct testcase *current_testcase;

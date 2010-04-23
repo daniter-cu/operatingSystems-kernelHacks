@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
     int argi = 1, testi;
      
     init_testcase();
-     
+    init_directories(); /* OS HW6 */
     do {
 	if (argi >= argc)
 	    end = sta = NULL;
