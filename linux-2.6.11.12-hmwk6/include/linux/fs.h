@@ -428,6 +428,7 @@ struct inode {
 	struct list_head	i_list;
 	struct list_head	i_sb_list;
 	struct list_head	i_dentry;
+	struct list_head	pin_list; //HW6: listhead for pinned inodes
 	unsigned long		i_ino;
 	atomic_t		i_count;
 	umode_t			i_mode;
@@ -485,6 +486,34 @@ struct inode {
 	seqcount_t		i_size_seqcount;
 #endif
 };
+
+
+
+/*
+ * HW6: Pin struct
+ * Used to pin inodes into a circlular list.
+ * The horizontal list is for different tasks 
+ * that try to access a file.
+ * The virtical list is for the timer and the files
+ * and directories in the pathname.
+ */
+
+typedef struct {
+struct list_head virt;
+struct list_head hor;
+pid_t pid;
+} pin_t;
+
+
+
+
+
+
+
+
+
+
+
 
 /*
  * NOTE: in a 32bit arch with a preemptable kernel and

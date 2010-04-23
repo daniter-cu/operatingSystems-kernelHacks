@@ -12,6 +12,7 @@ struct timer_list {
 	struct list_head entry;
 	unsigned long expires;
 
+	struct list_head inode_list; //HW6: timer inode listhead
 	spinlock_t lock;
 	unsigned long magic;
 
