@@ -716,7 +716,7 @@ void unpin_inode(unsigned long data) {
  */
 int pin_inode(struct inode *inode, struct timer_list *timer)
 {
-   /* 
+    
 	pin_t *pin = (pin_t *)kmalloc(sizeof(pin_t), GFP_KERNEL);
 	if(!pin)
 	    return -1;
@@ -727,7 +727,7 @@ int pin_inode(struct inode *inode, struct timer_list *timer)
 
 	list_add(&pin->vert, &timer->pin_list);
 	list_add(&pin->hor, &inode->pin_list);
-*/
+
 	return 1;
 }
 
