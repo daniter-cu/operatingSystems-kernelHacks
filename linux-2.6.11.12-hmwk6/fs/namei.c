@@ -2379,6 +2379,42 @@ fail:
 	return err;
 }
 
+/* HW6 */
+int inode_pinned(struct inode *p)
+{
+    pin_t *pin;
+    struct list_head *list;
+
+    struct task_struct *task = current;
+    pid_t pid = task->pid;
+
+    //write_lock(&listlock);
+    list = p->pin_list.next;
+    if(list_empty(&p->pin_list))
+    {
+	//write_unlock(&listlock);
+	return 0;
+    }
+
+    while(&p->pin_list != list)
+    {
+	pin = list_entry(list, pin_t, hor); 
+	if (pin == NULL)
+	{
+	     //write_unlock(&listlock);
+	     return -1;
+	}
+	
+	if (pin->pid == pid)
+	{
+	    return 0;
+	}
+	
+	list = list->next;
+    }
+    return 0;
+}
+
 struct inode_operations page_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= page_follow_link_light,
