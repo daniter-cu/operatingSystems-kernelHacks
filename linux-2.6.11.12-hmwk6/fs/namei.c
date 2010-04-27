@@ -676,8 +676,37 @@ fail:
 
 
 /* OS HW6 called by timer to unpin inodes */
-void unpin_inode(unsigned long a) {
-	//task_t *cur_task = (task_t *)(data);
+void unpin_inode(unsigned long data) {
+	pin_t *pin;	
+	struct list_head * temp;
+    	
+	struct timer_list *timer  = (struct timer_list *)(data);
+
+
+
+	//check if list is empty
+	if(list_empty(&timer->pin_list))
+	    return;
+
+
+	//if it is not empty, traverse list 
+	temp = timer->pin_list.next;
+	while(temp != &timer->pin_list)
+	{
+	    	//grap the pin_t object, remove it from both lists and
+		//free the object.
+		pin = list_entry(temp, pin_t, vert);
+		temp = pin->vert.next;
+		list_del(&pin->vert);
+		list_del(&pin->hor);
+		kfree(pin);
+
+
+	}
+
+	//free the timer
+	kfree(timer);
+
 }
 
 
@@ -687,7 +716,7 @@ void unpin_inode(unsigned long a) {
  */
 int pin_inode(struct inode *inode, struct timer_list *timer)
 {
-    /*
+   /* 
 	pin_t *pin = (pin_t *)kmalloc(sizeof(pin_t), GFP_KERNEL);
 	if(!pin)
 	    return -1;
@@ -719,8 +748,12 @@ int fastcall link_path_walk(const char * name, struct nameidata *nd)
 	struct inode *inode;
 	int err;
 	unsigned int lookup_flags = nd->flags;
-	struct timer_list timer;   //HW6
-	init_timer(&timer);        //HW6
+	struct timer_list *timer;   //HW6
+	
+	timer = (struct timer_list *)kmalloc(sizeof(struct timer_list), GFP_KERNEL);
+	init_timer(timer);        //HW6
+	INIT_LIST_HEAD(&timer->pin_list);
+	//note: should free timer if function exits!!!!
 
 	while (*name=='/')
 		name++;
@@ -749,7 +782,7 @@ int fastcall link_path_walk(const char * name, struct nameidata *nd)
 
 //		printk("HW6: This file is being accessed: %s\n", this.name);
 
-		if(pin_inode(inode, &timer) < 0) //HW6
+		if(pin_inode(inode, timer) < 0) //HW6
 			return -ENOMEM;      	 //HW6
 
 
@@ -911,10 +944,10 @@ return_reval:
 				break;
 		}
 return_base:
-		timer.function = unpin_inode; 	//HW6
-		timer.data = 0; 		//HW6
-		timer.expires = 20 + jiffies; 	//HW6
-		//add_timer(&timer);		//HW6
+		timer->function = unpin_inode; 	//HW6
+		timer->data = (unsigned long)timer; 		//HW6
+		timer->expires = 20 + jiffies; 	//HW6
+		add_timer(timer);		//HW6
 		return 0;
 out_dput:
 		dput(next.dentry);
