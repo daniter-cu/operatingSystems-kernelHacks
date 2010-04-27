@@ -9,7 +9,8 @@ int main(int argc, char **argv) {
     int argi = 1, testi;
      
     init_testcase();
-    init_directories(); /* OS HW6 */
+//    init_directories(); /* OS HW6 */
+    remove_directories(); // avoid collisions
     do {
 	if (argi >= argc)
 	    end = sta = NULL;
@@ -33,7 +34,7 @@ int main(int argc, char **argv) {
 		runtest(testcase[testi]);
 	}
     } while (++argi < argc);
-    remove_directories();
+    //  remove_directories();
     return 0;
 }
 
