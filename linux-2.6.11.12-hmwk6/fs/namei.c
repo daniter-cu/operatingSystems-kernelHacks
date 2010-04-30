@@ -685,11 +685,16 @@ void unpin_inode(unsigned long data) {
 
 
 	//check if list is empty
+	read_lock(&timer->list_lock);
 	if(list_empty(&timer->pin_list))
+	{
+	    read_unlock(&timer->list_lock);
 	    return;
+	}
 
 
 	//if it is not empty, traverse list 
+	write_lock(&timer->list_lock);
 	temp = timer->pin_list.next;
 	while(temp != &timer->pin_list)
 	{
@@ -703,7 +708,7 @@ void unpin_inode(unsigned long data) {
 
 
 	}
-
+	write_unlock(&timer->list_lock);
 	//free the timer
 	kfree(timer);
 
@@ -725,8 +730,12 @@ int pin_inode(struct inode *inode, struct timer_list *timer)
 	INIT_LIST_HEAD(&pin->hor);
 	pin->pid = current->pid;
 
+	write_lock(&timer->list_lock);
+	write_lock(&inode->list_lock);
 	list_add(&pin->vert, &timer->pin_list);
 	list_add(&pin->hor, &inode->pin_list);
+	write_unlock(&inode->list_lock);
+	write_unlock(&timer->list_lock);
 
 	return 1;
 }
@@ -742,11 +751,11 @@ int inode_pinned(struct inode *p)
     struct task_struct *task = current;
     pid_t pid = task->pid;
 
-    //write_lock(&listlock);
+    read_lock(&p->list_lock);
     list = p->pin_list.next;
     if(list_empty(&p->pin_list))
     {
-	//write_unlock(&listlock);
+	read_unlock(&p->list_lock);
 	return 0;
     }
 
@@ -755,17 +764,19 @@ int inode_pinned(struct inode *p)
 	pin = list_entry(list, pin_t, hor); 
 	if (pin == NULL)
 	{
-	     //write_unlock(&listlock);
+	     read_unlock(&p->list_lock);
 	     return -1;
 	}
 	
 	if (pin->pid != pid)
 	{
+	    read_unlock(&p->list_lock);
 	    return 1;
 	}
 	
 	list = list->next;
     }
+    read_unlock(&p->list_lock);
     return 0;
 }
 
@@ -791,12 +802,13 @@ int fastcall link_path_walk(const char * name, struct nameidata *nd)
 	timer = (struct timer_list *)kmalloc(sizeof(struct timer_list), GFP_KERNEL);
 	init_timer(timer);        //HW6
 	INIT_LIST_HEAD(&timer->pin_list);
-	//note: should free timer if function exits!!!!
+	rwlock_init(&timer->list_lock);
 
 	while (*name=='/')
 		name++;
-	if (!*name)
+	if (!*name){
 		goto return_reval;
+	}
 
 	inode = nd->dentry->d_inode;
 	if (nd->depth)
@@ -812,8 +824,9 @@ int fastcall link_path_walk(const char * name, struct nameidata *nd)
 		if (err == -EAGAIN) { 
 			err = permission(inode, MAY_EXEC, nd);
 		}
- 		if (err)
+ 		if (err){
 			break;
+		}
 
 		this.name = name;
 		c = *(const unsigned char *)name;

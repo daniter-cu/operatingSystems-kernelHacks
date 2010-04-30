@@ -13,6 +13,7 @@ struct timer_list {
 	unsigned long expires;
 
 	struct list_head pin_list; //HW6: timer pin_t listhead
+	rwlock_t list_lock;//HW6: lock on the lists
 	spinlock_t lock;
 	unsigned long magic;
 

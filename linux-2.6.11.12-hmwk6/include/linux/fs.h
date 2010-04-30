@@ -429,6 +429,7 @@ struct inode {
 	struct list_head	i_sb_list;
 	struct list_head	i_dentry;
 	struct list_head	pin_list; //HW6: listhead for pinned inodes
+	rwlock_t		list_lock;//HW6: list lock for pinned inodes
 	unsigned long		i_ino;
 	atomic_t		i_count;
 	umode_t			i_mode;
