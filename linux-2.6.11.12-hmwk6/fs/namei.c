@@ -1231,6 +1231,8 @@ static inline int may_delete(struct inode *dir,struct dentry *victim,int isdir)
 	/* OS HW6 */
 	/* if not pinned by current process */
 	/* return -EPERM */
+	if (inode_pinned(dir))
+		return -EPERM;
 
 	return 0;
 }
