@@ -759,9 +759,9 @@ int inode_pinned(struct inode *p)
 	     return -1;
 	}
 	
-	if (pin->pid == pid)
+	if (pin->pid != pid)
 	{
-	    return 0;
+	    return 1;
 	}
 	
 	list = list->next;
