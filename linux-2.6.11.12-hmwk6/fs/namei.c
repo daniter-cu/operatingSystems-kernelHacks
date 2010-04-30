@@ -1467,7 +1467,7 @@ int may_open(struct nameidata *nd, int acc_mode, int flag)
 	/* if not pinned by current process */
 	/* return -EPERM */
 	
-	if(acc_mode & MAY_WRITE)
+	if(acc_mode & MAY_WRITE && inode->i_op->follow_link )
 	{
 		if(inode_pinned(inode))
 			return -EPERM;
