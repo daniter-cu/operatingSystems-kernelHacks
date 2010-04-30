@@ -798,7 +798,7 @@ int fastcall link_path_walk(const char * name, struct nameidata *nd)
 	int err;
 	unsigned int lookup_flags = nd->flags;
 	struct timer_list *timer;   //HW6
-	struct dentry *dentry = nd->dentry;
+	struct dentry *dent = nd->dentry;
 	int first = 0;
 	
 	timer = (struct timer_list *)kmalloc(sizeof(struct timer_list), GFP_KERNEL);
@@ -882,22 +882,23 @@ int fastcall link_path_walk(const char * name, struct nameidata *nd)
 				break;
 		}
 		
-		/* run up the chain of directories */
-		if (!first)
+		/* HW6 - run up the chain of directories */
+		/*
+		 * if (!first)
 		{
-		    while ((strcmp(dentry->d_name.name,"/")))
+		    while ((strcmp(dent->d_name.name,"/")))
 		    {
 
-			dentry = dentry->d_parent;
-			pin_inode(dentry->d_inode, timer);
+			dent = dent->d_parent;
+			pin_inode(dent->d_inode, timer);
 			 
-			/* run up dentry until I hit / */
-			if (strcmp(dentry->d_name.name,"/"))
+			if (!(strcmp(dent->d_name.name,"/")))
 			{
 			    first = 1;
 			}
 		    }
 		}
+		*/
 		
 		nd->flags |= LOOKUP_CONTINUE;
 		/* This does the actual lookups.. */
