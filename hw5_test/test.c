@@ -22,7 +22,7 @@ int ISGOODTESTNUM(char *num) {
     }
     return 0;
 }
- 
+//this is not a comment 
 void runtest(struct testcase *test) {
     pid_t pid;
      
