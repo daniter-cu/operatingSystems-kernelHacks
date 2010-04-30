@@ -691,7 +691,7 @@ void unpin_inode(unsigned long data) {
 	    read_unlock(&timer->list_lock);
 	    return;
 	}
-
+	read_unlock(&timer->list_lock);
 
 	//if it is not empty, traverse list 
 	write_lock(&timer->list_lock);
