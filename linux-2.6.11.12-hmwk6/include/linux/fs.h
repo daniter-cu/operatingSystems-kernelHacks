@@ -503,6 +503,7 @@ typedef struct {
     struct list_head vert;
     struct list_head hor;
     pid_t pid;
+    struct inode *inode;
 } pin_t;
 
 

@@ -689,6 +689,7 @@ void unpin_inode(unsigned long data) {
 	if(list_empty(&timer->pin_list))
 	{
 	    read_unlock(&timer->list_lock);
+	    kfree(timer);
 	    return;
 	}
 	read_unlock(&timer->list_lock);
@@ -701,11 +702,14 @@ void unpin_inode(unsigned long data) {
 	    	//grap the pin_t object, remove it from both lists and
 		//free the object.
 		pin = list_entry(temp, pin_t, vert);
-		temp = pin->vert.next;
+		//temp = pin->vert.next;
 		list_del(&pin->vert);
-		list_del(&pin->hor);
-		kfree(pin);
 
+		write_lock(&pin->inode->list_lock);
+		list_del(&pin->hor);
+		write_unlock(&pin->inode->list_lock);
+		kfree(pin);
+		temp = timer->pin_list.next;
 
 	}
 	write_unlock(&timer->list_lock);
@@ -729,7 +733,7 @@ int pin_inode(struct inode *inode, struct timer_list *timer)
 	INIT_LIST_HEAD(&pin->vert);
 	INIT_LIST_HEAD(&pin->hor);
 	pin->pid = current->pid;
-
+	pin->inode = inode;
 	write_lock(&timer->list_lock);
 	write_lock(&inode->list_lock);
 	list_add(&pin->vert, &timer->pin_list);
@@ -756,6 +760,7 @@ int inode_pinned(struct inode *p)
     if(list_empty(&p->pin_list))
     {
 	read_unlock(&p->list_lock);
+//	printk("%s\n", "inside inode_pinned, list_empty(&p->pin_list) is true\n");
 	return 0;
     }
 
@@ -771,12 +776,14 @@ int inode_pinned(struct inode *p)
 	if (pin->pid != pid)
 	{
 	    read_unlock(&p->list_lock);
+//	    printk("%s %d ,%d\n", "HW6 inodes pinned pids", (int)pin->pid, (int)pid);
 	    return 1;
 	}
 	
 	list = list->next;
     }
     read_unlock(&p->list_lock);
+  //  printk("%s\n", "inside inode_pinned, about to exit function and return 0\n");
     return 0;
 }
 
@@ -795,6 +802,7 @@ int fastcall link_path_walk(const char * name, struct nameidata *nd)
 {
 	struct path next;
 	struct inode *inode;
+	struct inode *oldnode;
 	int err;
 	unsigned int lookup_flags = nd->flags;
 	struct timer_list *timer;   //HW6
@@ -883,22 +891,15 @@ int fastcall link_path_walk(const char * name, struct nameidata *nd)
 		}
 		
 		/* HW6 - run up the chain of directories */
-		/*
-		 * if (!first)
+		if (!first)
 		{
-		    while ((strcmp(dent->d_name.name,"/")))
+		    while (strcmp(dent->d_name.name, "/")!=0)
 		    {
-
 			dent = dent->d_parent;
 			pin_inode(dent->d_inode, timer);
-			 
-			if (!(strcmp(dent->d_name.name,"/")))
-			{
-			    first = 1;
-			}
 		    }
+		    first = 1;
 		}
-		*/
 		
 		nd->flags |= LOOKUP_CONTINUE;
 		/* This does the actual lookups.. */
@@ -956,6 +957,16 @@ last_component:
 				follow_dotdot(&nd->mnt, &nd->dentry);
 				inode = nd->dentry->d_inode;
 				/* fallthrough */
+
+
+
+				//HW6
+				if(pin_inode(inode, timer)<0)
+		    		return -ENOMEM;
+
+
+
+
 			case 1:
 				goto return_reval;
 		}
@@ -968,7 +979,12 @@ last_component:
 		if (err)
 			break;
 		follow_mount(&next.mnt, &next.dentry);
+		
+		oldnode = inode;
 		inode = next.dentry->d_inode;
+		
+
+
 		if ((lookup_flags & LOOKUP_FOLLOW)
 		    && inode && inode->i_op && inode->i_op->follow_link) {
 			mntget(next.mnt);
@@ -991,6 +1007,13 @@ last_component:
 			if (!inode->i_op || !inode->i_op->lookup)
 				break;
 		}
+	
+
+//		    if(pin_inode(inode, timer) <0)
+//			return -ENOMEM;
+
+		
+
 		goto return_base;
 lookup_parent:
 		nd->last = this;
@@ -1303,9 +1326,11 @@ static inline int may_delete(struct inode *dir,struct dentry *victim,int isdir)
 	/* OS HW6 */
 	/* if not pinned by current process */
 	/* return -EPERM */
-	if (inode_pinned(victim->d_inode))
-		return -EPERM;
-
+	if (inode_pinned(victim->d_inode) == 1)
+	{
+	    //printk("%s\n", "inode_pinned(victim->d_inode) returns true\n");
+	    return -EPERM;
+	}
 	return 0;
 }
 
@@ -1500,11 +1525,17 @@ int may_open(struct nameidata *nd, int acc_mode, int flag)
 	/* OS HW6 */
 	/* if not pinned by current process */
 	/* return -EPERM */
+
 	
-	if(acc_mode & MAY_WRITE && inode->i_op->follow_link )
+
+	if((acc_mode & MAY_WRITE && inode->i_op->follow_link) || inode->i_op->follow_link)
 	{
-		if(inode_pinned(inode))
-			return -EPERM;
+	    //printk("%s\n", "HW6 - acc_mode & MAY_WRITE && ... evaluates to true");
+	    if(inode_pinned(inode))
+	    {
+	//	printk("%s\n", "HW6 - inode_pinned(inode) returns true\n");
+		return -EPERM;
+	    }
 	}
 
 	return 0;
